@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { LessonLevel } from '../../data/curriculum';
 import { SectionCard } from '../../components/SectionCard';
 
@@ -8,6 +9,8 @@ interface HomeScreenProps {
   totalStars: number;
   onContinue: () => void;
   onOpenCourse: () => void;
+  onStartCustomHanzi: (character: string) => Promise<void> | void;
+  customError?: string | null;
 }
 
 export function HomeScreen({
@@ -17,11 +20,15 @@ export function HomeScreen({
   totalStars,
   onContinue,
   onOpenCourse,
+  onStartCustomHanzi,
+  customError,
 }: HomeScreenProps) {
+  const [customValue, setCustomValue] = useState('');
+
   return (
     <div className="space-y-4" data-testid="home-screen">
       <section className="rounded-[2.5rem] bg-[linear-gradient(135deg,_#14532d,_#166534_55%,_#38bdf8)] p-6 text-white shadow-[0_18px_50px_rgba(22,101,52,0.32)]">
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-white/70">森林营地</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-white/70">项目冒险</p>
         <h1 className="mt-3 text-3xl font-black">继续今天的营地冒险</h1>
         <p className="mt-3 max-w-sm text-sm leading-6 text-white/85">
           每收集一个字的线索，就能点亮一张古诗卡，把自然发现装进你的营地手账。
@@ -44,6 +51,40 @@ export function HomeScreen({
             >
               {`去完成${currentLevel.title}`}
             </button>
+          )}
+        </div>
+      </SectionCard>
+
+      <SectionCard eyebrow="自由单字" title="我想马上学一个字">
+        <div className="space-y-3">
+          <p className="text-sm leading-6 text-slate-600">
+            输入一个你现在就想认识的单字。系统会马上帮你找到可学习的内容和对应古诗卡。
+          </p>
+          <div className="flex items-center gap-3">
+            <input
+              className="flex-1 rounded-[1.3rem] border border-slate-200 bg-white px-4 py-3 text-center text-2xl font-bold text-slate-900 outline-none focus:border-sky-400"
+              data-testid="custom-hanzi-input"
+              maxLength={1}
+              placeholder="字"
+              value={customValue}
+              onChange={(event) => {
+                const value = event.target.value.slice(-1);
+                setCustomValue(value);
+              }}
+            />
+            <button
+              className="rounded-[1.2rem] bg-sky-500 px-4 py-3 text-sm font-bold text-white"
+              data-testid="custom-hanzi-start"
+              onClick={() => onStartCustomHanzi(customValue)}
+              type="button"
+            >
+              开始学习
+            </button>
+          </div>
+          {customError && (
+            <p className="text-sm font-medium text-rose-600" data-testid="custom-hanzi-error">
+              {customError}
+            </p>
           )}
         </div>
       </SectionCard>

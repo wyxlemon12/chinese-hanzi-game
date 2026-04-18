@@ -18,3 +18,14 @@ test('learner can reach the quiz stage and finish a lesson in test mode', async 
   await page.getByTestId('close-summary').click();
   await expect(page.getByTestId('home-screen')).toBeVisible();
 });
+
+test('learner can start a custom hanzi lesson from the home screen', async ({ page }) => {
+  await page.goto('/?e2e=1');
+
+  await page.getByTestId('start-adventure').click();
+  await page.getByTestId('custom-hanzi-input').fill('花');
+  await page.getByTestId('custom-hanzi-start').click();
+
+  await expect(page.getByTestId('lesson-screen')).toBeVisible();
+  await expect(page.getByText('自由探索：花')).toBeVisible();
+});

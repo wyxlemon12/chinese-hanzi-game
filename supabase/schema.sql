@@ -41,6 +41,11 @@ create table if not exists hanzi_items (
   animation_ref text not null
 );
 
+alter table hanzi_items add column if not exists source text not null default 'seed';
+alter table hanzi_items add column if not exists project_theme text not null default '自由单字';
+alter table hanzi_items add column if not exists observation_hint text not null default '';
+alter table hanzi_items add column if not exists mission_prompt text not null default '';
+
 create table if not exists level_content_items (
   level_id text not null references lesson_levels(id) on delete cascade,
   hanzi_item_id text not null references hanzi_items(id) on delete cascade,
@@ -95,5 +100,42 @@ create table if not exists admin_users (
   id uuid primary key,
   email text not null unique,
   role text not null default 'admin',
+  created_at timestamptz not null default now()
+);
+
+create table if not exists poem_library_entries (
+  id text primary key,
+  line_text text not null,
+  poem_title text not null,
+  author text not null,
+  dynasty text not null,
+  focus_character text not null,
+  characters_included jsonb not null default '[]'::jsonb,
+  difficulty_level text not null default 'starter',
+  theme_tags jsonb not null default '[]'::jsonb,
+  is_approved boolean not null default true,
+  meaning_in_line text not null,
+  kid_explanation text not null,
+  source_note text not null
+);
+
+create table if not exists hanzi_poem_links (
+  hanzi_id text not null references hanzi_items(id) on delete cascade,
+  poem_library_entry_id text references poem_library_entries(id) on delete cascade,
+  match_status text not null check (match_status in ('linked', 'pending', 'missing')),
+  source text not null default 'seed',
+  review_note text not null default '',
+  reviewed_by text,
+  created_at timestamptz not null default now(),
+  primary key (hanzi_id)
+);
+
+create table if not exists custom_hanzi_requests (
+  id uuid primary key,
+  character text not null,
+  age_band text not null,
+  context_theme text,
+  was_created boolean not null default false,
+  match_status text not null check (match_status in ('linked', 'pending', 'missing')),
   created_at timestamptz not null default now()
 );

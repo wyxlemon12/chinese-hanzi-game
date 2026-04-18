@@ -13,6 +13,12 @@ interface CandidateRequest {
   ageBand: AgeBand;
 }
 
+interface CharacterCandidateRequest {
+  character: string;
+  projectTheme: string;
+  ageBand: AgeBand;
+}
+
 interface ValidationResult {
   valid: boolean;
   errors: string[];
@@ -79,6 +85,17 @@ export function findPoemCandidatesForHanzi(
     .slice(0, 3);
 }
 
+export function findPoemCandidatesForCharacter(
+  curriculum: Curriculum,
+  request: CharacterCandidateRequest,
+): PoemLibraryEntry[] {
+  return [...curriculum.poemLibrary]
+    .filter((entry) => entry.isApproved)
+    .filter((entry) => entry.charactersIncluded.includes(request.character))
+    .sort((left, right) => scoreEntry(right, request, request.character) - scoreEntry(left, request, request.character))
+    .slice(0, 3);
+}
+
 export function getLinkedPoemForHanzi(curriculum: Curriculum, hanziId: string) {
   const link = getPoemLinkForHanzi(curriculum, hanziId);
   if (!link || !link.poemLibraryEntryId) {
@@ -94,7 +111,11 @@ export function getLinkedPoemForHanzi(curriculum: Curriculum, hanziId: string) {
   };
 }
 
-function scoreEntry(entry: PoemLibraryEntry, request: CandidateRequest, targetCharacter: string) {
+function scoreEntry(
+  entry: PoemLibraryEntry,
+  request: Pick<CharacterCandidateRequest, 'projectTheme' | 'ageBand'>,
+  targetCharacter: string,
+) {
   let score = 0;
 
   if (entry.focusCharacter === targetCharacter) {

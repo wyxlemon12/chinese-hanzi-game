@@ -2,15 +2,24 @@ import { useMemo, useState } from 'react';
 import { HanziGrid } from '../../components/HanziGrid';
 import { PoemDeepDiveCard } from '../../components/PoemDeepDiveCard';
 import { SectionCard } from '../../components/SectionCard';
-import { curriculum, type HanziItem, type LessonLevel } from '../../data/curriculum';
+import {
+  curriculum,
+  type HanziItem,
+  type HanziPoemLink,
+  type LessonLevel,
+  type PoemLibraryEntry,
+} from '../../data/curriculum';
 import { getLinkedPoemForHanzi } from '../../data/poem-matching';
 import { advanceLessonFlow, createLessonFlow, getQuizProgressLabel } from '../../domain/lesson-flow';
 import { StrokeQuizPanel } from './StrokeQuizPanel';
 
 interface LessonExperienceProps {
   e2eMode?: boolean;
+  mode?: 'project' | 'custom';
   level: LessonLevel;
   hanzi: HanziItem;
+  poemLinkOverride?: HanziPoemLink | null;
+  poemLibraryEntryOverride?: PoemLibraryEntry | null;
   onBack: () => void;
   onComplete: (totalMistakes: number) => void;
   onCloseSummary: () => void;
@@ -18,15 +27,21 @@ interface LessonExperienceProps {
 
 export function LessonExperience({
   e2eMode = false,
+  mode = 'project',
   level,
   hanzi,
+  poemLinkOverride,
+  poemLibraryEntryOverride,
   onBack,
   onComplete,
   onCloseSummary,
 }: LessonExperienceProps) {
   const [flow, setFlow] = useState(() => createLessonFlow(level.id));
   const [readyForQuiz, setReadyForQuiz] = useState(false);
-  const { poemLink, poemLibraryEntry } = getLinkedPoemForHanzi(curriculum, hanzi.id);
+
+  const defaultPoem = getLinkedPoemForHanzi(curriculum, hanzi.id);
+  const poemLink = poemLinkOverride ?? defaultPoem.poemLink;
+  const poemLibraryEntry = poemLibraryEntryOverride ?? defaultPoem.poemLibraryEntry;
 
   const stars = useMemo(() => {
     if (!flow.summary) {
@@ -35,6 +50,13 @@ export function LessonExperience({
 
     return '⭐'.repeat(flow.summary.stars);
   }, [flow.summary]);
+
+  const contextTitle = mode === 'project' ? level.title : `自由探索：${hanzi.character}`;
+  const stageTitle = mode === 'project' ? '先看老师写' : '先认识这个字';
+  const missionCopy =
+    mode === 'project'
+      ? hanzi.missionPrompt
+      : `这是你主动输入的“${hanzi.character}”，先看老师写，再自己描一描。`;
 
   return (
     <div className="min-h-screen bg-oat px-4 py-6" data-testid="lesson-screen">
@@ -48,11 +70,11 @@ export function LessonExperience({
             返回
           </button>
           <div className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm">
-            {level.title}
+            {contextTitle}
           </div>
         </header>
 
-        <SectionCard eyebrow="演示段" title={hanzi.character}>
+        <SectionCard eyebrow="观察区" title={stageTitle}>
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -60,12 +82,12 @@ export function LessonExperience({
                 <p className="mt-2 text-base text-slate-600">{hanzi.meaning}</p>
               </div>
               <div className="rounded-[1.5rem] bg-sky-50 px-4 py-3 text-right">
-                <p className="text-xs font-semibold text-sky-600">结构提示</p>
-                <p className="mt-1 text-sm font-bold text-slate-900">{hanzi.radical}</p>
+                <p className="text-xs font-semibold text-sky-600">观察提示</p>
+                <p className="mt-1 text-sm font-bold text-slate-900">{hanzi.observationHint}</p>
               </div>
             </div>
 
-            <p className="text-base font-bold text-slate-900">{`先看老师把“${hanzi.character}”写一遍`}</p>
+            <p className="text-base font-bold text-slate-900">{missionCopy}</p>
             <p className="text-sm leading-6 text-slate-600">{hanzi.introText}</p>
 
             <HanziGrid
@@ -85,15 +107,15 @@ export function LessonExperience({
               }}
               type="button"
             >
-              开始描写测验
+              开始描一描
             </button>
           </div>
         </SectionCard>
 
-        <SectionCard eyebrow="练习段" title="描写 Quiz">
+        <SectionCard eyebrow="练习区" title={mode === 'project' ? '轮到你来试' : '自己写一写'}>
           {flow.stage === 'demo' && (
             <div className="rounded-[1.5rem] bg-slate-50 p-4 text-sm leading-6 text-slate-500">
-              先完成上面的演示，然后点击“开始描写测验”。
+              先完成上面的演示，然后点击“开始描一描”。
             </div>
           )}
 
@@ -171,10 +193,12 @@ export function LessonExperience({
           {flow.stage === 'complete' && flow.summary && (
             <div className="space-y-4" data-testid="lesson-summary">
               <div className="rounded-[1.8rem] bg-[linear-gradient(135deg,_#fef3c7,_#bfdbfe)] p-5 text-center">
-                <p className="text-sm font-semibold text-slate-600">结算段</p>
+                <p className="text-sm font-semibold text-slate-600">收集完成</p>
                 <p className="mt-2 text-3xl font-black text-slate-900">{stars}</p>
                 <p className="mt-3 text-lg font-bold text-slate-900">
-                  {`你完成了 ${hanzi.character} 的描写挑战`}
+                  {mode === 'project'
+                    ? `你收集到了“${hanzi.character}”这条线索`
+                    : `你已经学会了“${hanzi.character}”的基本写法`}
                 </p>
                 <p className="mt-2 text-sm text-slate-600">{`总错误次数：${flow.summary.totalMistakes}`}</p>
               </div>
@@ -191,7 +215,7 @@ export function LessonExperience({
                 onClick={onCloseSummary}
                 type="button"
               >
-                继续下一关
+                返回继续学习
               </button>
             </div>
           )}

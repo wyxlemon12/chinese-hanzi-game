@@ -35,13 +35,13 @@ describe('App', () => {
     render(<App />);
 
     expect(screen.getByTestId('start-adventure')).toBeInTheDocument();
-
     await user.click(screen.getByTestId('start-adventure'));
 
     expect(screen.getByTestId('home-screen')).toBeInTheDocument();
+    expect(screen.getByTestId('custom-hanzi-input')).toBeInTheDocument();
   });
 
-  it('opens the first lesson and shows the demo stage before quiz', async () => {
+  it('opens the first project lesson and shows the project flow before writing', async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -52,7 +52,7 @@ describe('App', () => {
     expect(screen.getByTestId('start-quiz')).toBeInTheDocument();
   });
 
-  it('shows a poem deep-dive card after finishing a linked hanzi quiz', async () => {
+  it('shows a poem deep-dive card after finishing a linked project hanzi quiz', async () => {
     const user = userEvent.setup();
     window.history.replaceState({}, '', '/?e2e=1');
     render(<App />);
@@ -64,5 +64,17 @@ describe('App', () => {
 
     expect(screen.getByTestId('lesson-summary')).toBeInTheDocument();
     expect(screen.getByTestId('poem-card')).toBeInTheDocument();
+  });
+
+  it('lets the learner input a custom hanzi and open a custom lesson', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByTestId('start-adventure'));
+    await user.type(screen.getByTestId('custom-hanzi-input'), '花');
+    await user.click(screen.getByTestId('custom-hanzi-start'));
+
+    expect(screen.getByTestId('lesson-screen')).toBeInTheDocument();
+    expect(screen.getByText('自由探索：花')).toBeInTheDocument();
   });
 });

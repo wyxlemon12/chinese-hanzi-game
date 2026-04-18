@@ -1,7 +1,15 @@
 import { useState } from 'react';
 import { BottomNav } from './components/BottomNav';
 import { Celebration } from './components/Celebration';
-import { curriculum, getHanziItemById, type AgeBand, type LessonLevel } from './data/curriculum';
+import {
+  curriculum,
+  getHanziItemById,
+  type AgeBand,
+  type HanziItem,
+  type HanziPoemLink,
+  type LessonLevel,
+  type PoemLibraryEntry,
+} from './data/curriculum';
 import { createProgressRepository, type ProgressSnapshot, type StorageLike } from './domain/progress-store';
 import { AdminDashboard } from './features/admin/AdminDashboard';
 import { CourseFlowScreen } from './features/course/CourseFlowScreen';
@@ -10,9 +18,15 @@ import { LessonExperience } from './features/lesson/LessonExperience';
 import { OnboardingScreen } from './features/onboarding/OnboardingScreen';
 import { ProfileScreen } from './features/profile/ProfileScreen';
 import { RewardsScreen } from './features/rewards/RewardsScreen';
+import { matchAndUpsertHanzi, type ResolvedCustomHanziLesson } from './services/match-and-upsert-hanzi';
 
 type TabKey = 'home' | 'course' | 'rewards' | 'profile';
 type OverlayKey = 'lesson' | 'admin' | null;
+
+type ActiveLesson =
+  | { mode: 'project'; levelId: string }
+  | { mode: 'custom'; lesson: ResolvedCustomHanziLesson }
+  | null;
 
 function createBrowserStorage(): StorageLike {
   if (typeof window === 'undefined') {
@@ -50,7 +64,8 @@ export default function App() {
   const [learner, setLearner] = useState(() => repository.getLearnerProfile());
   const [tab, setTab] = useState<TabKey>('home');
   const [overlay, setOverlay] = useState<OverlayKey>(null);
-  const [activeLevelId, setActiveLevelId] = useState<string | null>(null);
+  const [activeLesson, setActiveLesson] = useState<ActiveLesson>(null);
+  const [customError, setCustomError] = useState<string | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
 
   const levels = getAllLevels();
@@ -58,8 +73,29 @@ export default function App() {
   const attempts = repository.getAttempts();
 
   const currentLevel = getCurrentLevel(levels, snapshots);
-  const activeLevel = levels.find((level) => level.id === activeLevelId) ?? currentLevel;
-  const activeHanzi = activeLevel ? getHanziItemById(activeLevel.hanziItemId) : null;
+  const activeProjectLevel =
+    activeLesson?.mode === 'project'
+      ? levels.find((level) => level.id === activeLesson.levelId) ?? currentLevel
+      : currentLevel;
+  const activeProjectHanzi = activeProjectLevel ? getHanziItemById(activeProjectLevel.hanziItemId) : null;
+
+  const lessonMode = activeLesson?.mode ?? 'project';
+  const lessonLevel: LessonLevel | null =
+    activeLesson?.mode === 'custom'
+      ? activeLesson.lesson.level
+      : activeProjectLevel;
+  const lessonHanzi: HanziItem | null =
+    activeLesson?.mode === 'custom'
+      ? activeLesson.lesson.hanzi
+      : activeProjectHanzi;
+  const lessonPoemLink: HanziPoemLink | null =
+    activeLesson?.mode === 'custom'
+      ? activeLesson.lesson.poemLink
+      : null;
+  const lessonPoemEntry: PoemLibraryEntry | null =
+    activeLesson?.mode === 'custom'
+      ? activeLesson.lesson.poemLibraryEntry
+      : null;
 
   const completedSnapshots = snapshots.filter((snapshot) => snapshot.status === 'completed');
   const totalStars = completedSnapshots.reduce((sum, snapshot) => sum + snapshot.stars, 0);
@@ -70,21 +106,36 @@ export default function App() {
     setTab('home');
   };
 
-  const handleOpenLesson = (levelId: string) => {
-    setActiveLevelId(levelId);
+  const handleOpenProjectLesson = (levelId: string) => {
+    setActiveLesson({ mode: 'project', levelId });
     setOverlay('lesson');
+  };
+
+  const handleStartCustomHanzi = async (character: string) => {
+    try {
+      setCustomError(null);
+      const resolved = await matchAndUpsertHanzi({
+        character,
+        ageBand: learner?.ageBand ?? '6-8',
+      });
+
+      setActiveLesson({ mode: 'custom', lesson: resolved });
+      setOverlay('lesson');
+    } catch (error) {
+      setCustomError(error instanceof Error ? error.message : '这个字暂时还不能学习');
+    }
   };
 
   const handleLessonComplete = (totalMistakes: number) => {
     const session = repository.getCurrentSession() ?? repository.startSession();
-    if (!activeLevel || !activeHanzi) {
+    if (!lessonLevel || !lessonHanzi) {
       return;
     }
 
     repository.recordQuizAttempt({
       sessionId: session.id,
-      hanziItemId: activeHanzi.id,
-      levelId: activeLevel.id,
+      hanziItemId: lessonHanzi.id,
+      levelId: lessonLevel.id,
       totalMistakes,
       result: 'passed',
     });
@@ -97,7 +148,8 @@ export default function App() {
     setLearner(null);
     setTab('home');
     setOverlay(null);
-    setActiveLevelId(null);
+    setActiveLesson(null);
+    setCustomError(null);
   };
 
   if (!learner) {
@@ -116,20 +168,23 @@ export default function App() {
     );
   }
 
-  if (overlay === 'lesson' && activeLevel && activeHanzi) {
+  if (overlay === 'lesson' && lessonLevel && lessonHanzi) {
     return (
       <>
         <LessonExperience
-          key={activeLevel.id}
+          key={lessonLevel.id}
           e2eMode={isE2EMode}
-          hanzi={activeHanzi}
-          level={activeLevel}
+          mode={lessonMode}
+          hanzi={lessonHanzi}
+          level={lessonLevel}
+          poemLinkOverride={lessonPoemLink}
+          poemLibraryEntryOverride={lessonPoemEntry}
           onBack={() => setOverlay(null)}
           onComplete={(totalMistakes) => {
             handleLessonComplete(totalMistakes);
           }}
           onCloseSummary={() => {
-            setActiveLevelId(null);
+            setActiveLesson(null);
             setOverlay(null);
           }}
         />
@@ -151,19 +206,21 @@ export default function App() {
             completedCount={completedSnapshots.length}
             currentLevel={currentLevel}
             currentUnitTitle={currentLevel?.unitTitle ?? '准备领取第一条线索'}
+            customError={customError}
             onContinue={() => {
               if (currentLevel) {
-                handleOpenLesson(currentLevel.id);
+                handleOpenProjectLesson(currentLevel.id);
               }
             }}
             onOpenCourse={() => setTab('course')}
+            onStartCustomHanzi={handleStartCustomHanzi}
             totalStars={totalStars}
           />
         )}
         {tab === 'course' && (
           <CourseFlowScreen
             levels={levels}
-            onStartLevel={handleOpenLesson}
+            onStartLevel={handleOpenProjectLesson}
             snapshots={snapshots}
           />
         )}
