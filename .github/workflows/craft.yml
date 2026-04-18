@@ -1,0 +1,167 @@
+name: Craft Pipeline
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: craft-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coding:
+    name: Coding
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare artifact directories
+        run: mkdir -p artifacts/logs
+
+      - name: Run lint
+        run: npm run lint 2>&1 | tee artifacts/logs/coding.log
+
+      - name: Run typecheck
+        run: npm run typecheck 2>&1 | tee -a artifacts/logs/coding.log
+
+      - name: Upload coding logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coding-logs
+          path: artifacts/logs/coding.log
+
+  testing:
+    name: Testing
+    runs-on: ubuntu-latest
+    needs: coding
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare artifact directories
+        run: mkdir -p artifacts/logs
+
+      - name: Run tests
+        run: npm run test:ci 2>&1 | tee artifacts/logs/testing.log
+
+      - name: Upload testing logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testing-logs
+          path: artifacts/logs/testing.log
+
+  ci_cd:
+    name: CI-CD
+    runs-on: ubuntu-latest
+    needs: testing
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare artifact directories
+        run: mkdir -p artifacts/logs
+
+      - name: Build production bundle
+        run: npm run build 2>&1 | tee artifacts/logs/build.log
+
+      - name: Upload production bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-dist
+          path: dist
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: artifacts/logs/build.log
+
+  debug:
+    name: Debug
+    runs-on: ubuntu-latest
+    needs:
+      - coding
+      - testing
+      - ci_cd
+    if: failure()
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download coding logs
+        if: ${{ needs.coding.result == 'failure' || needs.coding.result == 'success' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: coding-logs
+          path: artifacts/logs
+
+      - name: Download testing logs
+        if: ${{ needs.testing.result == 'failure' || needs.testing.result == 'success' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: testing-logs
+          path: artifacts/logs
+
+      - name: Download build logs
+        if: ${{ needs.ci_cd.result == 'failure' || needs.ci_cd.result == 'success' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: build-logs
+          path: artifacts/logs
+
+      - name: Generate debug summary
+        env:
+          FAILURE_STEP: ${{ needs.coding.result == 'failure' && 'coding' || needs.testing.result == 'failure' && 'testing' || needs.ci_cd.result == 'failure' && 'build' || 'unknown' }}
+        run: npm run debug:report
+
+      - name: Publish job summary
+        run: cat artifacts/debug-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload debug bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-bundle
+          path: artifacts

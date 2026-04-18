@@ -1,0 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&family=Noto+Sans+SC:wght@400;500;700;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Baloo 2', 'Noto Sans SC', sans-serif;
+    color: #0f172a;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #fff8ef;
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button,
+  input {
+    font: inherit;
+  }
+}
+
+@layer components {
+  .tianzige {
+    background-color: #fff8e8;
+    border: 3px solid #f1ddad;
+    border-radius: 1.5rem;
+    background-image:
+      linear-gradient(#e9d2a4 1px, transparent 1px),
+      linear-gradient(90deg, #e9d2a4 1px, transparent 1px),
+      linear-gradient(to top right, transparent 49%, #e9d2a4 49%, #e9d2a4 51%, transparent 51%),
+      linear-gradient(to top left, transparent 49%, #e9d2a4 49%, #e9d2a4 51%, transparent 51%);
+    background-size: 50% 50%, 50% 50%, 100% 100%, 100% 100%;
+  }
+}
+
+.hanzi-writer-svg text {
+  font-family: 'Noto Sans SC', sans-serif !important;
+}
