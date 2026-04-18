@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useEffectEvent, useRef } from 'react';
 import HanziWriter from 'hanzi-writer';
 
 interface StrokeData {
@@ -28,6 +28,9 @@ export function StrokeQuizPanel({
 }: StrokeQuizPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const writerRef = useRef<HanziWriter | null>(null);
+  const handleMistake = useEffectEvent(onMistake);
+  const handleCorrectStroke = useEffectEvent(onCorrectStroke);
+  const handleComplete = useEffectEvent(onComplete);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -51,9 +54,9 @@ export function StrokeQuizPanel({
       });
 
       writerRef.current.quiz({
-        onMistake,
-        onCorrectStroke,
-        onComplete,
+        onMistake: handleMistake,
+        onCorrectStroke: handleCorrectStroke,
+        onComplete: handleComplete,
       });
     } catch (error) {
       console.error(error);
@@ -66,7 +69,7 @@ export function StrokeQuizPanel({
         // Ignore cleanup errors from HanziWriter.
       }
     };
-  }, [hanzi, onComplete, onCorrectStroke, onMistake]);
+  }, [hanzi]);
 
   return (
     <div className="rounded-[2rem] bg-white p-4 shadow-inner">
