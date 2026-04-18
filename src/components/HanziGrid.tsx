@@ -91,7 +91,7 @@ export function HanziGrid({ hanzi, isAnimating, onAnimationComplete }: HanziGrid
         onClick={handleReplay}
         type="button"
       >
-        重新演示
+        再看一遍
       </button>
     </div>
   );

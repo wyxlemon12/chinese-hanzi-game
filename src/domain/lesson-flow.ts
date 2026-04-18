@@ -49,7 +49,7 @@ export function createLessonFlow(lessonId: string): LessonFlow {
       totalMistakes: 0,
       completedStrokes: 0,
       strokesRemaining: 0,
-      lastFeedback: '先看老师演示，再开始描写。',
+      lastFeedback: '先看老师写一遍，等会儿你就能去收集这条线索了。',
     },
     summary: null,
   };
@@ -64,7 +64,7 @@ export function advanceLessonFlow(flow: LessonFlow, event: LessonFlowEvent): Les
         totalMistakes: 0,
         completedStrokes: 0,
         strokesRemaining: 0,
-        lastFeedback: '轮到你来描写啦。',
+        lastFeedback: '看懂了吗？轮到你来描一描了。',
       },
     };
   }
@@ -77,7 +77,7 @@ export function advanceLessonFlow(flow: LessonFlow, event: LessonFlowEvent): Les
         totalMistakes: event.totalMistakes,
         completedStrokes: flow.quiz.completedStrokes,
         strokesRemaining: event.strokesRemaining,
-        lastFeedback: `第 ${event.strokeNum + 1} 笔再试一次，我们慢慢来。`,
+        lastFeedback: `第 ${event.strokeNum + 1} 笔再试一次，我们慢慢把线索找出来。`,
       },
     };
   }
@@ -90,7 +90,7 @@ export function advanceLessonFlow(flow: LessonFlow, event: LessonFlowEvent): Les
         totalMistakes: event.totalMistakes,
         completedStrokes: flow.quiz.completedStrokes + 1,
         strokesRemaining: event.strokesRemaining,
-        lastFeedback: `太棒了，第 ${event.strokeNum + 1} 笔写对了。`,
+        lastFeedback: `太好了，你已经找到第 ${event.strokeNum + 1} 笔线索。`,
       },
     };
   }
@@ -108,7 +108,7 @@ export function advanceLessonFlow(flow: LessonFlow, event: LessonFlowEvent): Les
 
 export function getQuizProgressLabel(flow: LessonFlow): string {
   if (flow.stage === 'complete') {
-    return '描写完成';
+    return '线索收集完成';
   }
 
   return `还剩 ${flow.quiz.strokesRemaining} 笔`;

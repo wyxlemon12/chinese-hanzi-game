@@ -39,10 +39,41 @@ npm run dev
 
 ```bash
 npm run test:ci
+npm run test:e2e
 npm run typecheck
 npm run lint
 npm run build
 ```
+
+## 本地自动化测试
+
+项目已经接入 Playwright 本地冒烟测试。
+
+首次使用建议先安装浏览器：
+
+```bash
+npx playwright install chromium
+```
+
+然后运行：
+
+```bash
+npm run test:e2e
+```
+
+如果你想边看浏览器边调试：
+
+```bash
+npm run test:e2e:headed
+```
+
+目前这条 E2E 会覆盖一条核心学习流：
+
+- 进入 Onboarding
+- 开始冒险
+- 进入当前关卡
+- 进入 quiz 阶段
+- 完成测试模式下的关卡结算流程
 
 ## CI/CD
 

@@ -19,7 +19,7 @@ vi.mock('hanzi-writer', () => ({
 }));
 
 describe('StrokeQuizPanel', () => {
-  it('does not recreate the quiz when parent callbacks change during the same lesson', () => {
+  it('does not recreate the quiz when parent callbacks change for the same hanzi', () => {
     const { rerender } = render(
       <StrokeQuizPanel
         hanzi="人"

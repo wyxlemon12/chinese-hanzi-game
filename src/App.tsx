@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { BottomNav } from './components/BottomNav';
 import { Celebration } from './components/Celebration';
 import { curriculum, getHanziItemById, type AgeBand, type LessonLevel } from './data/curriculum';
-import { createProgressRepository, getNextLevelId, type ProgressSnapshot, type StorageLike } from './domain/progress-store';
+import { createProgressRepository, type ProgressSnapshot, type StorageLike } from './domain/progress-store';
 import { AdminDashboard } from './features/admin/AdminDashboard';
 import { CourseFlowScreen } from './features/course/CourseFlowScreen';
 import { HomeScreen } from './features/home/HomeScreen';
@@ -43,6 +43,9 @@ function getAllLevels() {
 
 export default function App() {
   const [repository] = useState(() => createProgressRepository(createBrowserStorage()));
+  const isE2EMode =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('e2e') === '1';
 
   const [learner, setLearner] = useState(() => repository.getLearnerProfile());
   const [tab, setTab] = useState<TabKey>('home');
@@ -86,9 +89,7 @@ export default function App() {
       result: 'passed',
     });
 
-    const nextLevelId = getNextLevelId(curriculum, activeLevel.id);
     setShowCelebration(true);
-    setActiveLevelId(nextLevelId);
   };
 
   const handleResetProgress = () => {
@@ -120,13 +121,17 @@ export default function App() {
       <>
         <LessonExperience
           key={activeLevel.id}
+          e2eMode={isE2EMode}
           hanzi={activeHanzi}
           level={activeLevel}
           onBack={() => setOverlay(null)}
           onComplete={(totalMistakes) => {
             handleLessonComplete(totalMistakes);
           }}
-          onCloseSummary={() => setOverlay(null)}
+          onCloseSummary={() => {
+            setActiveLevelId(null);
+            setOverlay(null);
+          }}
         />
         <Celebration
           show={showCelebration}
@@ -145,7 +150,7 @@ export default function App() {
           <HomeScreen
             completedCount={completedSnapshots.length}
             currentLevel={currentLevel}
-            currentUnitTitle={currentLevel?.unitTitle ?? '准备开始第一关'}
+            currentUnitTitle={currentLevel?.unitTitle ?? '准备领取第一条线索'}
             onContinue={() => {
               if (currentLevel) {
                 handleOpenLesson(currentLevel.id);

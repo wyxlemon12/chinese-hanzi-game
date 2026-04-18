@@ -1,6 +1,7 @@
-import type { LearnerProfile, ProgressSnapshot, QuizAttemptRecord } from '../../domain/progress-store';
-import type { LessonLevel } from '../../data/curriculum';
 import { SectionCard } from '../../components/SectionCard';
+import { curriculum, getHanziItemById, type LessonLevel } from '../../data/curriculum';
+import { findPoemCandidatesForHanzi, getPoemLinkForHanzi } from '../../data/poem-matching';
+import type { LearnerProfile, ProgressSnapshot, QuizAttemptRecord } from '../../domain/progress-store';
 
 interface AdminDashboardProps {
   learner: LearnerProfile;
@@ -32,7 +33,7 @@ export function AdminDashboard({ learner, levels, snapshots, attempts, onClose }
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.25em] text-sky-600">Admin</p>
             <h1 className="mt-2 text-3xl font-black">轻量内容后台</h1>
-            <p className="mt-2 text-sm text-slate-500">当前匿名学习者：{learner.deviceKey}</p>
+            <p className="mt-2 text-sm text-slate-500">{`当前匿名学习者：${learner.deviceKey}`}</p>
           </div>
           <button
             className="rounded-[1rem] bg-slate-900 px-4 py-2 text-sm font-bold text-white"
@@ -44,14 +45,36 @@ export function AdminDashboard({ learner, levels, snapshots, attempts, onClose }
         </header>
 
         <div className="grid gap-4 lg:grid-cols-2">
-          <SectionCard eyebrow="Content Library" title="汉字内容">
+          <SectionCard eyebrow="Content Library" title="汉字与古诗推荐">
             <div className="space-y-3">
-              {levels.map((level) => (
-                <div key={level.id} className="rounded-[1.25rem] bg-slate-50 p-4">
-                  <p className="font-bold text-slate-900">{level.title}</p>
-                  <p className="mt-1 text-sm text-slate-500">{level.unitTitle}</p>
-                </div>
-              ))}
+              {levels.map((level) => {
+                const hanzi = getHanziItemById(level.hanziItemId);
+                const poemLink = getPoemLinkForHanzi(curriculum, level.hanziItemId);
+                const candidates = hanzi
+                  ? findPoemCandidatesForHanzi(curriculum, {
+                      hanziId: hanzi.id,
+                      projectTheme: hanzi.projectTheme,
+                      ageBand: learner.ageBand,
+                    })
+                  : [];
+
+                return (
+                  <div key={level.id} className="rounded-[1.25rem] bg-slate-50 p-4">
+                    <p className="font-bold text-slate-900">{level.title}</p>
+                    <p className="mt-1 text-sm text-slate-500">{level.unitTitle}</p>
+                    <p className="mt-2 text-sm text-slate-600">
+                      古诗状态：
+                      <strong className="ml-2 text-slate-900">{poemLink?.matchStatus ?? 'missing'}</strong>
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      推荐候选：
+                      {candidates.length > 0
+                        ? ` ${candidates.map((item) => `${item.poemTitle}《${item.lineText}》`).join(' / ')}`
+                        : ' 暂无候选'}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           </SectionCard>
 
@@ -59,23 +82,23 @@ export function AdminDashboard({ learner, levels, snapshots, attempts, onClose }
             <div className="space-y-3 text-sm text-slate-600">
               <p>已发布课程：1</p>
               <p>单元数：1</p>
-              <p>关卡数：{levels.length}</p>
-              <p>当前策略：线性闯关 + quiz 通过后解锁下一关。</p>
+              <p>{`关卡数：${levels.length}`}</p>
+              <p>当前策略：线性闯关 + 诗句推荐候选 + 人工审核确认。</p>
             </div>
           </SectionCard>
 
           <SectionCard eyebrow="Publish Control" title="上线状态">
             <div className="space-y-3 text-sm text-slate-600">
               <p>状态：Published</p>
-              <p>最后活跃时间：{new Date(learner.lastActiveAt).toLocaleString()}</p>
-              <p>学习快照数：{snapshots.length}</p>
+              <p>{`最后活跃时间：${new Date(learner.lastActiveAt).toLocaleString()}`}</p>
+              <p>{`学习快照数：${snapshots.length}`}</p>
             </div>
           </SectionCard>
 
           <SectionCard eyebrow="Basic Analytics" title="学习表现">
             <div className="space-y-3 text-sm text-slate-600">
-              <p>平均错误次数：{averageMistakes}</p>
-              <p>已完成关卡：{snapshots.filter((snapshot) => snapshot.status === 'completed').length}</p>
+              <p>{`平均错误次数：${averageMistakes}`}</p>
+              <p>{`已完成关卡：${snapshots.filter((snapshot) => snapshot.status === 'completed').length}`}</p>
               <p>
                 最容易卡住的关卡：
                 <strong className="ml-2 text-slate-900">

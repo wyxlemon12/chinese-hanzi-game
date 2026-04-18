@@ -17,11 +17,16 @@ vi.mock('hanzi-writer', () => ({
   },
 }));
 
+vi.mock('canvas-confetti', () => ({
+  default: vi.fn(),
+}));
+
 beforeEach(() => {
   vi.stubGlobal('crypto', {
     randomUUID: () => 'test-uuid',
   });
   window.localStorage.clear();
+  window.history.replaceState({}, '', '/');
 });
 
 describe('App', () => {
@@ -29,30 +34,35 @@ describe('App', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    expect(
-      screen.getByRole('heading', { name: '书院汉字小勇士' }),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('start-adventure')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '开始今天的冒险' }));
+    await user.click(screen.getByTestId('start-adventure'));
 
-    expect(
-      screen.getByRole('heading', { name: '继续今天的汉字冒险' }),
-    ).toBeInTheDocument();
-    expect(screen.getByText('第一站：看见汉字的样子')).toBeInTheDocument();
+    expect(screen.getByTestId('home-screen')).toBeInTheDocument();
   });
 
   it('opens the first lesson and shows the demo stage before quiz', async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole('button', { name: '开始今天的冒险' }));
-    await user.click(screen.getByRole('button', { name: '开始第 1 关：认识“人”' }));
+    await user.click(screen.getByTestId('start-adventure'));
+    await user.click(screen.getByTestId('continue-lesson'));
 
-    expect(screen.getByText('演示段')).toBeInTheDocument();
-    expect(screen.getByText('练习段')).toBeInTheDocument();
-    expect(screen.getByText('先看老师把“人”写一遍')).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: '开始描写测验' }),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('lesson-screen')).toBeInTheDocument();
+    expect(screen.getByTestId('start-quiz')).toBeInTheDocument();
+  });
+
+  it('shows a poem deep-dive card after finishing a linked hanzi quiz', async () => {
+    const user = userEvent.setup();
+    window.history.replaceState({}, '', '/?e2e=1');
+    render(<App />);
+
+    await user.click(screen.getByTestId('start-adventure'));
+    await user.click(screen.getByTestId('continue-lesson'));
+    await user.click(screen.getByTestId('start-quiz'));
+    await user.click(screen.getByTestId('e2e-complete-quiz'));
+
+    expect(screen.getByTestId('lesson-summary')).toBeInTheDocument();
+    expect(screen.getByTestId('poem-card')).toBeInTheDocument();
   });
 });

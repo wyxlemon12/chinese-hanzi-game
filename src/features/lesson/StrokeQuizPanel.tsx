@@ -72,7 +72,7 @@ export function StrokeQuizPanel({
   }, [hanzi]);
 
   return (
-    <div className="rounded-[2rem] bg-white p-4 shadow-inner">
+    <div className="rounded-[2rem] bg-white p-4 shadow-inner" data-testid="quiz-panel">
       <div className="mx-auto h-[300px] w-[300px]">
         <div ref={containerRef} className="h-full w-full" />
       </div>

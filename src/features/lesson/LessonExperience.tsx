@@ -1,11 +1,14 @@
 import { useMemo, useState } from 'react';
-import { SectionCard } from '../../components/SectionCard';
 import { HanziGrid } from '../../components/HanziGrid';
-import type { HanziItem, LessonLevel } from '../../data/curriculum';
+import { PoemDeepDiveCard } from '../../components/PoemDeepDiveCard';
+import { SectionCard } from '../../components/SectionCard';
+import { curriculum, type HanziItem, type LessonLevel } from '../../data/curriculum';
+import { getLinkedPoemForHanzi } from '../../data/poem-matching';
 import { advanceLessonFlow, createLessonFlow, getQuizProgressLabel } from '../../domain/lesson-flow';
 import { StrokeQuizPanel } from './StrokeQuizPanel';
 
 interface LessonExperienceProps {
+  e2eMode?: boolean;
   level: LessonLevel;
   hanzi: HanziItem;
   onBack: () => void;
@@ -14,6 +17,7 @@ interface LessonExperienceProps {
 }
 
 export function LessonExperience({
+  e2eMode = false,
   level,
   hanzi,
   onBack,
@@ -22,6 +26,7 @@ export function LessonExperience({
 }: LessonExperienceProps) {
   const [flow, setFlow] = useState(() => createLessonFlow(level.id));
   const [readyForQuiz, setReadyForQuiz] = useState(false);
+  const { poemLink, poemLibraryEntry } = getLinkedPoemForHanzi(curriculum, hanzi.id);
 
   const stars = useMemo(() => {
     if (!flow.summary) {
@@ -32,7 +37,7 @@ export function LessonExperience({
   }, [flow.summary]);
 
   return (
-    <div className="min-h-screen bg-oat px-4 py-6">
+    <div className="min-h-screen bg-oat px-4 py-6" data-testid="lesson-screen">
       <div className="mx-auto max-w-md space-y-4 sm:max-w-2xl">
         <header className="flex items-center justify-between">
           <button
@@ -62,6 +67,7 @@ export function LessonExperience({
 
             <p className="text-base font-bold text-slate-900">{`先看老师把“${hanzi.character}”写一遍`}</p>
             <p className="text-sm leading-6 text-slate-600">{hanzi.introText}</p>
+
             <HanziGrid
               hanzi={hanzi.character}
               isAnimating
@@ -69,8 +75,10 @@ export function LessonExperience({
                 setReadyForQuiz(true);
               }}
             />
+
             <button
               className="w-full rounded-[1.4rem] bg-slate-900 px-4 py-3 text-base font-bold text-white disabled:bg-slate-300"
+              data-testid="start-quiz"
               disabled={!readyForQuiz}
               onClick={() => {
                 setFlow((current) => advanceLessonFlow(current, { type: 'ANIMATION_FINISHED' }));
@@ -139,19 +147,47 @@ export function LessonExperience({
                   onComplete(summaryData.totalMistakes);
                 }}
               />
+
+              {e2eMode && (
+                <button
+                  className="w-full rounded-[1.2rem] border border-dashed border-sky-300 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700"
+                  data-testid="e2e-complete-quiz"
+                  onClick={() => {
+                    const nextFlow = advanceLessonFlow(flow, {
+                      type: 'QUIZ_COMPLETED',
+                      totalMistakes: flow.quiz.totalMistakes,
+                    });
+                    setFlow(nextFlow);
+                    onComplete(flow.quiz.totalMistakes);
+                  }}
+                  type="button"
+                >
+                  Complete Quiz (E2E)
+                </button>
+              )}
             </div>
           )}
 
           {flow.stage === 'complete' && flow.summary && (
-            <div className="space-y-4">
+            <div className="space-y-4" data-testid="lesson-summary">
               <div className="rounded-[1.8rem] bg-[linear-gradient(135deg,_#fef3c7,_#bfdbfe)] p-5 text-center">
                 <p className="text-sm font-semibold text-slate-600">结算段</p>
                 <p className="mt-2 text-3xl font-black text-slate-900">{stars}</p>
-                <p className="mt-3 text-lg font-bold text-slate-900">你完成了 {hanzi.character} 的描写挑战</p>
-                <p className="mt-2 text-sm text-slate-600">总错误次数：{flow.summary.totalMistakes}</p>
+                <p className="mt-3 text-lg font-bold text-slate-900">
+                  {`你完成了 ${hanzi.character} 的描写挑战`}
+                </p>
+                <p className="mt-2 text-sm text-slate-600">{`总错误次数：${flow.summary.totalMistakes}`}</p>
               </div>
+
+              <PoemDeepDiveCard
+                hanziId={hanzi.id}
+                poemLink={poemLink}
+                poemLibraryEntry={poemLibraryEntry}
+              />
+
               <button
                 className="w-full rounded-[1.4rem] bg-slate-900 px-4 py-3 text-base font-bold text-white"
+                data-testid="close-summary"
                 onClick={onCloseSummary}
                 type="button"
               >

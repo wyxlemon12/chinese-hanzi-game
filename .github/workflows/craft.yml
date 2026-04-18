@@ -64,8 +64,14 @@ jobs:
       - name: Prepare artifact directories
         run: mkdir -p artifacts/logs
 
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
       - name: Run tests
         run: npm run test:ci 2>&1 | tee artifacts/logs/testing.log
+
+      - name: Run Playwright smoke tests
+        run: npm run test:e2e 2>&1 | tee -a artifacts/logs/testing.log
 
       - name: Upload testing logs
         if: always()
@@ -73,6 +79,16 @@ jobs:
         with:
           name: testing-logs
           path: artifacts/logs/testing.log
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
 
   ci_cd:
     name: CI-CD
