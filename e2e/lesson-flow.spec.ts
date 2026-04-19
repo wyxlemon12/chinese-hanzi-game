@@ -6,7 +6,7 @@ test('learner can reach the quiz stage and finish a lesson in test mode', async 
   await page.getByTestId('start-adventure').click();
   await expect(page.getByTestId('home-screen')).toBeVisible();
 
-  await page.getByTestId('continue-lesson').click();
+  await page.getByTestId('clue-map-card-forest-camp-wood-01').click();
   await expect(page.getByTestId('lesson-screen')).toBeVisible();
 
   await page.getByTestId('start-quiz').click();
@@ -38,6 +38,6 @@ test('learner can generate a new adventure map from a knowledge point', async ({
   await page.getByTestId('generate-map-start').click();
 
   await expect(page.getByTestId('generated-map-loading')).toBeVisible();
-  await expect(page.getByTestId('generated-map-screen')).toBeVisible();
+  await expect(await page.getByTestId('generated-map-screen')).toBeVisible();
   await expect(page.getByTestId('generated-map-screen').getByTestId('generated-map-level')).toHaveCount(10);
 });

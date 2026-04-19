@@ -9,7 +9,6 @@ interface HomeScreenProps {
   completedCount: number;
   completedProjectLevelIds: string[];
   currentLevel: (LessonLevel & { unitTitle: string }) | null;
-  currentUnitTitle: string;
   totalStars: number;
   projectClues: ProjectClueMapItem[];
   onContinue: () => void;
@@ -27,7 +26,6 @@ export function HomeScreen({
   completedCount,
   completedProjectLevelIds,
   currentLevel,
-  currentUnitTitle,
   totalStars,
   projectClues,
   onOpenCourse,

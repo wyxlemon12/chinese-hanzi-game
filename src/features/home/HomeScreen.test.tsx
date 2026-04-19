@@ -11,7 +11,6 @@ function renderHomeScreen(onStartCustomHanzi = vi.fn()) {
       completedCount={0}
       completedProjectLevelIds={[]}
       currentLevel={null}
-      currentUnitTitle="准备领取第一条线索"
       totalStars={0}
       onContinue={() => {}}
       onOpenCourse={() => {}}

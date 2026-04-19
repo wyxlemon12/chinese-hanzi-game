@@ -286,7 +286,6 @@ export default function App() {
             completedCount={completedSnapshots.length}
             completedProjectLevelIds={completedProjectLevelIds}
             currentLevel={currentLevel}
-            currentUnitTitle={currentLevel?.unitTitle ?? '准备领取第一条线索'}
             customError={customError}
             generatedMapError={generatedMapError}
             generatedMapLoading={isGeneratingMap}
