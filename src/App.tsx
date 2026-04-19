@@ -20,7 +20,11 @@ import { LessonExperience } from './features/lesson/LessonExperience';
 import { OnboardingScreen } from './features/onboarding/OnboardingScreen';
 import { ProfileScreen } from './features/profile/ProfileScreen';
 import { RewardsScreen } from './features/rewards/RewardsScreen';
-import { generateAdventureMap } from './services/generate-adventure-map';
+import {
+  clearGeneratedAdventureMaps,
+  generateAdventureMap,
+  getLatestGeneratedAdventureMap,
+} from './services/generate-adventure-map';
 import { matchAndUpsertHanzi, type ResolvedCustomHanziLesson } from './services/match-and-upsert-hanzi';
 
 type TabKey = 'home' | 'course' | 'rewards' | 'profile';
@@ -69,7 +73,7 @@ export default function App() {
   const [tab, setTab] = useState<TabKey>('home');
   const [overlay, setOverlay] = useState<OverlayKey>(null);
   const [activeLesson, setActiveLesson] = useState<ActiveLesson>(null);
-  const [generatedMap, setGeneratedMap] = useState<GeneratedAdventureMap | null>(null);
+  const [generatedMap, setGeneratedMap] = useState<GeneratedAdventureMap | null>(() => getLatestGeneratedAdventureMap());
   const [customError, setCustomError] = useState<string | null>(null);
   const [generatedMapError, setGeneratedMapError] = useState<string | null>(null);
   const [isGeneratingMap, setIsGeneratingMap] = useState(false);
@@ -195,6 +199,7 @@ export default function App() {
     setTab('home');
     setOverlay(null);
     setActiveLesson(null);
+    clearGeneratedAdventureMaps();
     setGeneratedMap(null);
     setCustomError(null);
     setGeneratedMapError(null);

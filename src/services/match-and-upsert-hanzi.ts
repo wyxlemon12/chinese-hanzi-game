@@ -67,16 +67,6 @@ export async function matchAndUpsertHanzi(
     };
   }
 
-  const supabaseResolved = await trySupabaseEdgeFunction(request);
-  if (supabaseResolved) {
-    writeCustomStore(character, supabaseResolved);
-    return {
-      mode: 'custom',
-      wasCreated: true,
-      ...supabaseResolved,
-    };
-  }
-
   const generated = createLocalGeneratedLesson(request);
   writeCustomStore(character, generated);
 
@@ -190,37 +180,6 @@ function writeCustomStore(character: string, lesson: PersistedCustomLesson) {
   const current = readCustomStore();
   current[character] = lesson;
   window.localStorage.setItem(CUSTOM_STORE_KEY, JSON.stringify(current));
-}
-
-async function trySupabaseEdgeFunction(
-  request: MatchAndUpsertRequest,
-): Promise<PersistedCustomLesson | null> {
-  const url = import.meta.env.VITE_SUPABASE_URL;
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-  if (!url || !anonKey || typeof fetch === 'undefined') {
-    return null;
-  }
-
-  try {
-    const response = await fetch(`${url}/functions/v1/match-and-upsert-hanzi`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: anonKey,
-        Authorization: `Bearer ${anonKey}`,
-      },
-      body: JSON.stringify(request),
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    return (await response.json()) as PersistedCustomLesson;
-  } catch {
-    return null;
-  }
 }
 
 function isSingleHanzi(value: string) {

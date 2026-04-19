@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { generateAdventureMap } from './generate-adventure-map';
+import { generateAdventureMap, getLatestGeneratedAdventureMap } from './generate-adventure-map';
 
 beforeEach(() => {
   vi.stubGlobal('crypto', {
@@ -31,5 +31,18 @@ describe('generateAdventureMap', () => {
     expect(map.mode).toBe('random');
     expect(map.lessons).toHaveLength(10);
     expect(map.themeTitle.length).toBeGreaterThan(0);
+  });
+
+  it('persists the latest generated map locally', async () => {
+    const map = await generateAdventureMap({
+      mode: 'topic',
+      knowledgePoint: '木字旁',
+      ageBand: '6-8',
+    });
+
+    const restored = getLatestGeneratedAdventureMap();
+
+    expect(restored?.id).toBe(map.id);
+    expect(restored?.lessons).toHaveLength(10);
   });
 });
