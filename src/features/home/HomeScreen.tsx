@@ -10,7 +10,10 @@ interface HomeScreenProps {
   onContinue: () => void;
   onOpenCourse: () => void;
   onStartCustomHanzi: (character: string) => Promise<void> | void;
+  onGenerateAdventureMap: (options: { mode: 'topic' | 'random'; knowledgePoint?: string }) => Promise<void> | void;
   customError?: string | null;
+  generatedMapError?: string | null;
+  generatedMapLoading?: boolean;
 }
 
 export function HomeScreen({
@@ -21,9 +24,18 @@ export function HomeScreen({
   onContinue,
   onOpenCourse,
   onStartCustomHanzi,
+  onGenerateAdventureMap,
   customError,
+  generatedMapError,
+  generatedMapLoading = false,
 }: HomeScreenProps) {
   const [customValue, setCustomValue] = useState('');
+  const [mapValue, setMapValue] = useState('');
+  const [isComposing, setIsComposing] = useState(false);
+
+  const normalizeSingleCharacter = (value: string) => {
+    return [...value.trim()].slice(-1).join('');
+  };
 
   return (
     <div className="space-y-4" data-testid="home-screen">
@@ -55,6 +67,53 @@ export function HomeScreen({
         </div>
       </SectionCard>
 
+      <SectionCard eyebrow="新探险地图" title="让我生成一张新的冒险地图">
+        <div className="space-y-3">
+          <p className="text-sm leading-6 text-slate-600">
+            输入一个知识点，比如“春天”“木字旁”“和水有关”，系统会一次生成 10 个字的新地图。
+          </p>
+          <div className="flex items-center gap-3">
+            <input
+              className="flex-1 rounded-[1.3rem] border border-slate-200 bg-white px-4 py-3 text-lg font-semibold text-slate-900 outline-none focus:border-sky-400"
+              data-testid="generated-map-input"
+              placeholder="输入知识点"
+              value={mapValue}
+              onChange={(event) => {
+                setMapValue(event.target.value);
+              }}
+            />
+            <button
+              className="rounded-[1.2rem] bg-emerald-600 px-4 py-3 text-sm font-bold text-white"
+              data-testid="generate-map-start"
+              disabled={generatedMapLoading}
+              onClick={() => onGenerateAdventureMap({ mode: 'topic', knowledgePoint: mapValue })}
+              type="button"
+            >
+              生成地图
+            </button>
+          </div>
+          <button
+            className="w-full rounded-[1.2rem] border border-dashed border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700"
+            data-testid="generate-map-random"
+            disabled={generatedMapLoading}
+            onClick={() => onGenerateAdventureMap({ mode: 'random' })}
+            type="button"
+          >
+            随机来一张新地图
+          </button>
+          {generatedMapLoading && (
+            <p className="text-sm font-medium text-sky-700" data-testid="generated-map-loading">
+              正在整理 10 条新线索，也在补齐它们的古诗卡，请稍等……
+            </p>
+          )}
+          {generatedMapError && (
+            <p className="text-sm font-medium text-rose-600" data-testid="generated-map-error">
+              {generatedMapError}
+            </p>
+          )}
+        </div>
+      </SectionCard>
+
       <SectionCard eyebrow="自由单字" title="我想马上学一个字">
         <div className="space-y-3">
           <p className="text-sm leading-6 text-slate-600">
@@ -64,12 +123,18 @@ export function HomeScreen({
             <input
               className="flex-1 rounded-[1.3rem] border border-slate-200 bg-white px-4 py-3 text-center text-2xl font-bold text-slate-900 outline-none focus:border-sky-400"
               data-testid="custom-hanzi-input"
-              maxLength={1}
               placeholder="字"
               value={customValue}
+              onCompositionStart={() => {
+                setIsComposing(true);
+              }}
+              onCompositionEnd={(event) => {
+                setIsComposing(false);
+                setCustomValue(normalizeSingleCharacter(event.currentTarget.value));
+              }}
               onChange={(event) => {
-                const value = event.target.value.slice(-1);
-                setCustomValue(value);
+                const nextValue = event.target.value;
+                setCustomValue(isComposing ? nextValue : normalizeSingleCharacter(nextValue));
               }}
             />
             <button

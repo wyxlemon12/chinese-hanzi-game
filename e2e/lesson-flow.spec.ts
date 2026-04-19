@@ -29,3 +29,15 @@ test('learner can start a custom hanzi lesson from the home screen', async ({ pa
   await expect(page.getByTestId('lesson-screen')).toBeVisible();
   await expect(page.getByText('自由探索：花')).toBeVisible();
 });
+
+test('learner can generate a new adventure map from a knowledge point', async ({ page }) => {
+  await page.goto('/?e2e=1');
+
+  await page.getByTestId('start-adventure').click();
+  await page.getByTestId('generated-map-input').fill('春天');
+  await page.getByTestId('generate-map-start').click();
+
+  await expect(page.getByTestId('generated-map-loading')).toBeVisible();
+  await expect(page.getByTestId('generated-map-screen')).toBeVisible();
+  await expect(page.getByTestId('generated-map-screen').getByTestId('generated-map-level')).toHaveCount(10);
+});

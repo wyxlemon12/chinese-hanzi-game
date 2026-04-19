@@ -10,22 +10,26 @@ import {
   type LessonLevel,
   type PoemLibraryEntry,
 } from './data/curriculum';
+import { type GeneratedAdventureMap } from './data/generated-map-seeds';
 import { createProgressRepository, type ProgressSnapshot, type StorageLike } from './domain/progress-store';
 import { AdminDashboard } from './features/admin/AdminDashboard';
 import { CourseFlowScreen } from './features/course/CourseFlowScreen';
+import { GeneratedMapScreen } from './features/generated-map/GeneratedMapScreen';
 import { HomeScreen } from './features/home/HomeScreen';
 import { LessonExperience } from './features/lesson/LessonExperience';
 import { OnboardingScreen } from './features/onboarding/OnboardingScreen';
 import { ProfileScreen } from './features/profile/ProfileScreen';
 import { RewardsScreen } from './features/rewards/RewardsScreen';
+import { generateAdventureMap } from './services/generate-adventure-map';
 import { matchAndUpsertHanzi, type ResolvedCustomHanziLesson } from './services/match-and-upsert-hanzi';
 
 type TabKey = 'home' | 'course' | 'rewards' | 'profile';
-type OverlayKey = 'lesson' | 'admin' | null;
+type OverlayKey = 'lesson' | 'admin' | 'generated-map' | null;
 
 type ActiveLesson =
   | { mode: 'project'; levelId: string }
   | { mode: 'custom'; lesson: ResolvedCustomHanziLesson }
+  | { mode: 'generated'; mapId: string; lesson: GeneratedAdventureMap['lessons'][number] }
   | null;
 
 function createBrowserStorage(): StorageLike {
@@ -65,7 +69,10 @@ export default function App() {
   const [tab, setTab] = useState<TabKey>('home');
   const [overlay, setOverlay] = useState<OverlayKey>(null);
   const [activeLesson, setActiveLesson] = useState<ActiveLesson>(null);
+  const [generatedMap, setGeneratedMap] = useState<GeneratedAdventureMap | null>(null);
   const [customError, setCustomError] = useState<string | null>(null);
+  const [generatedMapError, setGeneratedMapError] = useState<string | null>(null);
+  const [isGeneratingMap, setIsGeneratingMap] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
 
   const levels = getAllLevels();
@@ -79,23 +86,31 @@ export default function App() {
       : currentLevel;
   const activeProjectHanzi = activeProjectLevel ? getHanziItemById(activeProjectLevel.hanziItemId) : null;
 
-  const lessonMode = activeLesson?.mode ?? 'project';
+  const lessonMode = activeLesson?.mode === 'generated' ? 'project' : activeLesson?.mode ?? 'project';
   const lessonLevel: LessonLevel | null =
     activeLesson?.mode === 'custom'
       ? activeLesson.lesson.level
-      : activeProjectLevel;
+      : activeLesson?.mode === 'generated'
+        ? activeLesson.lesson.level
+        : activeProjectLevel;
   const lessonHanzi: HanziItem | null =
     activeLesson?.mode === 'custom'
       ? activeLesson.lesson.hanzi
-      : activeProjectHanzi;
+      : activeLesson?.mode === 'generated'
+        ? activeLesson.lesson.hanzi
+        : activeProjectHanzi;
   const lessonPoemLink: HanziPoemLink | null =
     activeLesson?.mode === 'custom'
       ? activeLesson.lesson.poemLink
-      : null;
+      : activeLesson?.mode === 'generated'
+        ? activeLesson.lesson.poemLink
+        : null;
   const lessonPoemEntry: PoemLibraryEntry | null =
     activeLesson?.mode === 'custom'
       ? activeLesson.lesson.poemLibraryEntry
-      : null;
+      : activeLesson?.mode === 'generated'
+        ? activeLesson.lesson.poemLibraryEntry
+        : null;
 
   const completedSnapshots = snapshots.filter((snapshot) => snapshot.status === 'completed');
   const totalStars = completedSnapshots.reduce((sum, snapshot) => sum + snapshot.stars, 0);
@@ -109,6 +124,37 @@ export default function App() {
   const handleOpenProjectLesson = (levelId: string) => {
     setActiveLesson({ mode: 'project', levelId });
     setOverlay('lesson');
+  };
+
+  const handleOpenGeneratedLesson = (index: number) => {
+    if (!generatedMap) {
+      return;
+    }
+
+    setActiveLesson({
+      mode: 'generated',
+      mapId: generatedMap.id,
+      lesson: generatedMap.lessons[index],
+    });
+    setOverlay('lesson');
+  };
+
+  const handleGenerateAdventureMap = async (options: { mode: 'topic' | 'random'; knowledgePoint?: string }) => {
+    try {
+      setGeneratedMapError(null);
+      setIsGeneratingMap(true);
+      const result = await generateAdventureMap({
+        mode: options.mode,
+        knowledgePoint: options.knowledgePoint,
+        ageBand: learner?.ageBand ?? '6-8',
+      });
+      setGeneratedMap(result);
+      setOverlay('generated-map');
+    } catch (error) {
+      setGeneratedMapError(error instanceof Error ? error.message : '新的探险地图暂时还生成不出来');
+    } finally {
+      setIsGeneratingMap(false);
+    }
   };
 
   const handleStartCustomHanzi = async (character: string) => {
@@ -149,7 +195,9 @@ export default function App() {
     setTab('home');
     setOverlay(null);
     setActiveLesson(null);
+    setGeneratedMap(null);
     setCustomError(null);
+    setGeneratedMapError(null);
   };
 
   if (!learner) {
@@ -168,6 +216,18 @@ export default function App() {
     );
   }
 
+  if (overlay === 'generated-map' && generatedMap) {
+    return (
+      <GeneratedMapScreen
+        map={generatedMap}
+        onBack={() => {
+          setOverlay(null);
+        }}
+        onOpenLesson={handleOpenGeneratedLesson}
+      />
+    );
+  }
+
   if (overlay === 'lesson' && lessonLevel && lessonHanzi) {
     return (
       <>
@@ -179,13 +239,19 @@ export default function App() {
           level={lessonLevel}
           poemLinkOverride={lessonPoemLink}
           poemLibraryEntryOverride={lessonPoemEntry}
-          onBack={() => setOverlay(null)}
+          onBack={() => {
+            setOverlay(activeLesson?.mode === 'generated' ? 'generated-map' : null);
+          }}
           onComplete={(totalMistakes) => {
             handleLessonComplete(totalMistakes);
           }}
           onCloseSummary={() => {
+            if (activeLesson?.mode === 'generated') {
+              setOverlay('generated-map');
+            } else {
+              setOverlay(null);
+            }
             setActiveLesson(null);
-            setOverlay(null);
           }}
         />
         <Celebration
@@ -207,6 +273,8 @@ export default function App() {
             currentLevel={currentLevel}
             currentUnitTitle={currentLevel?.unitTitle ?? '准备领取第一条线索'}
             customError={customError}
+            generatedMapError={generatedMapError}
+            generatedMapLoading={isGeneratingMap}
             onContinue={() => {
               if (currentLevel) {
                 handleOpenProjectLesson(currentLevel.id);
@@ -214,6 +282,7 @@ export default function App() {
             }}
             onOpenCourse={() => setTab('course')}
             onStartCustomHanzi={handleStartCustomHanzi}
+            onGenerateAdventureMap={handleGenerateAdventureMap}
             totalStars={totalStars}
           />
         )}

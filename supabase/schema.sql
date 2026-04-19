@@ -139,3 +139,23 @@ create table if not exists custom_hanzi_requests (
   match_status text not null check (match_status in ('linked', 'pending', 'missing')),
   created_at timestamptz not null default now()
 );
+
+create table if not exists generated_maps (
+  id uuid primary key,
+  theme_title text not null,
+  theme_description text not null,
+  theme_rule_type text not null,
+  knowledge_point text,
+  generation_mode text not null check (generation_mode in ('topic', 'random')),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists generated_map_items (
+  id uuid primary key,
+  generated_map_id uuid not null references generated_maps(id) on delete cascade,
+  hanzi_id text not null references hanzi_items(id) on delete cascade,
+  level_id text not null,
+  sort_order integer not null,
+  poem_library_entry_id text references poem_library_entries(id) on delete set null,
+  created_at timestamptz not null default now()
+);

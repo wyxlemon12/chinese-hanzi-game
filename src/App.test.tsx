@@ -39,6 +39,7 @@ describe('App', () => {
 
     expect(screen.getByTestId('home-screen')).toBeInTheDocument();
     expect(screen.getByTestId('custom-hanzi-input')).toBeInTheDocument();
+    expect(screen.getByTestId('generated-map-input')).toBeInTheDocument();
   });
 
   it('opens the first project lesson and shows the project flow before writing', async () => {
@@ -76,5 +77,18 @@ describe('App', () => {
 
     expect(screen.getByTestId('lesson-screen')).toBeInTheDocument();
     expect(screen.getByText('自由探索：花')).toBeInTheDocument();
+  });
+
+  it('shows loading and opens a generated adventure map after entering a knowledge point', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByTestId('start-adventure'));
+    await user.type(screen.getByTestId('generated-map-input'), '春天');
+    await user.click(screen.getByTestId('generate-map-start'));
+
+    expect(screen.getByTestId('generated-map-loading')).toBeInTheDocument();
+    expect(await screen.findByTestId('generated-map-screen')).toBeInTheDocument();
+    expect(screen.getAllByTestId('generated-map-level')).toHaveLength(10);
   });
 });
