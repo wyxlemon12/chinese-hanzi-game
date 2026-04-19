@@ -2,7 +2,8 @@ export const generateAdventureMapPromptRegistry = {
   mapGenerationSystem: `
 You generate a temporary Chinese learning adventure map for children.
 Return exactly 10 unique single Chinese characters.
-Each character must include a lesson card and one poem card.
+Each character must include a complete learning card and one poem card.
+Prefer real classical Chinese poem lines and child-friendly explanations.
 Do not return partial data.
 `.trim(),
   mapGenerationUser: (knowledgePoint: string, ageBand: string) => `
@@ -15,6 +16,7 @@ Generate:
 - themeRuleType
 - 10 unique single Chinese characters
 - for each character:
+  - character
   - pinyin
   - meaning
   - radical
@@ -27,7 +29,7 @@ Generate:
   - poemCard
 `.trim(),
   completionCheck: `
-Reject any result that does not contain exactly 10 unique single Chinese characters
-or any character missing poem card data.
+Reject any result that does not contain exactly 10 unique single Chinese characters,
+or any character missing lesson text, poem card fields, or theme consistency.
 `.trim(),
 } as const;

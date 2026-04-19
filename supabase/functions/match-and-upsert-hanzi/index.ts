@@ -1,55 +1,38 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-
-type AgeBand = '4-6' | '6-8' | '8-10';
-
-interface PoemSeedEntry {
-  id: string;
-  lineText: string;
-  poemTitle: string;
-  author: string;
-  dynasty: string;
-  focusCharacter: string;
-  difficultyLevel: 'starter' | 'core' | 'advanced';
-  themeTags: string[];
-}
-
-const POEM_SEED: PoemSeedEntry[] = [
-  {
-    id: 'seed-flower',
-    lineText: '人闲桂花落，夜静春山空。',
-    poemTitle: '鸟鸣涧',
-    author: '王维',
-    dynasty: '唐',
-    focusCharacter: '花',
-    difficultyLevel: 'starter',
-    themeTags: ['自由单字', '自然'],
-  },
-  {
-    id: 'seed-rain',
-    lineText: '夜来风雨声，花落知多少。',
-    poemTitle: '春晓',
-    author: '孟浩然',
-    dynasty: '唐',
-    focusCharacter: '雨',
-    difficultyLevel: 'starter',
-    themeTags: ['自由单字', '自然'],
-  },
-  {
-    id: 'seed-cloud',
-    lineText: '白云生处有人家。',
-    poemTitle: '山行',
-    author: '杜牧',
-    dynasty: '唐',
-    focusCharacter: '云',
-    difficultyLevel: 'starter',
-    themeTags: ['自由单字', '自然'],
-  },
-];
+import { createMiniMaxJsonCompletion } from '../_shared/minimax.ts';
+import { matchAndUpsertPromptRegistry } from './prompt-registry.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+type AgeBand = '4-6' | '6-8' | '8-10';
+
+interface SingleHanziPayload {
+  hanzi: {
+    character: string;
+    pinyin: string;
+    meaning: string;
+    radical: string;
+    observationHint: string;
+    missionPrompt: string;
+    introText: string;
+    prompt: string;
+    encouragement: string;
+    vocabExamples: Array<{ word: string; gloss: string }>;
+  };
+  poemCard: {
+    lineText: string;
+    poemTitle: string;
+    author: string;
+    dynasty: string;
+    meaningInLine: string;
+    kidExplanation: string;
+    themeTags: string[];
+  } | null;
+  matchStatus: 'linked' | 'missing';
+}
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
@@ -95,6 +78,7 @@ Deno.serve(async (request) => {
       : null;
 
     return json({
+      wasCreated: false,
       hanzi: normalizeHanzi(existing.data),
       level: createCustomLevel(existing.data.id, character),
       poemLink: poemLink.data,
@@ -102,97 +86,168 @@ Deno.serve(async (request) => {
     });
   }
 
-  const candidate = chooseCandidate(character, ageBand, contextTheme ?? '自由单字');
-  const hanziId = `custom-${character.codePointAt(0)?.toString(16) ?? character}`;
-  const hanzi = {
-    id: hanziId,
-    character,
-    pinyin: '待补',
-    meaning: `这是你主动输入想学习的“${character}”。`,
-    radical: '自由单字',
-    stroke_count: 0,
-    animation_ref: character,
-    source: 'auto-generated',
-    project_theme: contextTheme ?? '自由单字',
-    observation_hint: '先观察这个字的轮廓，再试着描出来。',
-    mission_prompt: `先认识“${character}”，再看看它在古诗里怎么出现。`,
-  };
+  try {
+    const payload = await createMiniMaxJsonCompletion<SingleHanziPayload>({
+      messages: [
+        { role: 'system', content: matchAndUpsertPromptRegistry.singleHanziSystem },
+        {
+          role: 'user',
+          content: `${matchAndUpsertPromptRegistry.singleHanziUser(
+            character,
+            ageBand,
+            contextTheme ?? '自由单字',
+          )}\n\n${matchAndUpsertPromptRegistry.completionCheck}`,
+        },
+      ],
+      schemaName: 'generated_single_hanzi',
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['hanzi', 'poemCard', 'matchStatus'],
+        properties: {
+          matchStatus: { type: 'string', enum: ['linked', 'missing'] },
+          hanzi: {
+            type: 'object',
+            additionalProperties: false,
+            required: [
+              'character',
+              'pinyin',
+              'meaning',
+              'radical',
+              'observationHint',
+              'missionPrompt',
+              'introText',
+              'prompt',
+              'encouragement',
+              'vocabExamples',
+            ],
+            properties: {
+              character: { type: 'string' },
+              pinyin: { type: 'string' },
+              meaning: { type: 'string' },
+              radical: { type: 'string' },
+              observationHint: { type: 'string' },
+              missionPrompt: { type: 'string' },
+              introText: { type: 'string' },
+              prompt: { type: 'string' },
+              encouragement: { type: 'string' },
+              vocabExamples: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['word', 'gloss'],
+                  properties: {
+                    word: { type: 'string' },
+                    gloss: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+          poemCard: {
+            anyOf: [
+              { type: 'null' },
+              {
+                type: 'object',
+                additionalProperties: false,
+                required: ['lineText', 'poemTitle', 'author', 'dynasty', 'meaningInLine', 'kidExplanation', 'themeTags'],
+                properties: {
+                  lineText: { type: 'string' },
+                  poemTitle: { type: 'string' },
+                  author: { type: 'string' },
+                  dynasty: { type: 'string' },
+                  meaningInLine: { type: 'string' },
+                  kidExplanation: { type: 'string' },
+                  themeTags: {
+                    type: 'array',
+                    items: { type: 'string' },
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+    });
 
-  await supabase.from('hanzi_items').upsert(hanzi);
+    const hanziId = `custom-${character.codePointAt(0)?.toString(16) ?? character}`;
 
-  let poemEntry: Record<string, unknown> | null = null;
-  let poemLink: Record<string, unknown>;
+    await supabase.from('hanzi_items').upsert({
+      id: hanziId,
+      character: payload.hanzi.character,
+      pinyin: payload.hanzi.pinyin,
+      meaning: payload.hanzi.meaning,
+      radical: payload.hanzi.radical,
+      stroke_count: 0,
+      animation_ref: character,
+      source: 'ai-generated',
+      project_theme: contextTheme ?? '自由单字',
+      observation_hint: payload.hanzi.observationHint,
+      mission_prompt: payload.hanzi.missionPrompt,
+    });
 
-  if (candidate) {
-    poemEntry = {
-      id: `generated-${character}-${candidate.id}`,
-      line_text: candidate.lineText,
-      poem_title: candidate.poemTitle,
-      author: candidate.author,
-      dynasty: candidate.dynasty,
-      focus_character: character,
-      characters_included: [...new Set(candidate.lineText.replace(/[，。！？、；：]/g, '').split(''))],
-      difficulty_level: candidate.difficultyLevel,
-      theme_tags: candidate.themeTags,
-      is_approved: true,
-      meaning_in_line: `这句古诗里也出现了“${character}”。`,
-      kid_explanation: `学会“${character}”以后，你就能在古诗里把它认出来。`,
-      source_note: `${candidate.poemTitle} 真实古诗原句（自动匹配）`,
-    };
-    await supabase.from('poem_library_entries').upsert(poemEntry);
+    let poemEntry: Record<string, unknown> | null = null;
+    let poemLink: Record<string, unknown>;
 
-    poemLink = {
-      hanzi_id: hanziId,
-      poem_library_entry_id: poemEntry.id,
-      match_status: 'linked',
-      source: 'auto-generated',
-      review_note: '系统自动匹配并立即启用。',
-      reviewed_by: 'system',
-    };
-  } else {
-    poemLink = {
-      hanzi_id: hanziId,
-      poem_library_entry_id: null,
-      match_status: 'missing',
-      source: 'auto-generated',
-      review_note: '未在精选诗库中找到合适诗句。',
-      reviewed_by: null,
-    };
+    if (payload.matchStatus === 'linked' && payload.poemCard) {
+      poemEntry = {
+        id: `generated-${character}-${Date.now()}`,
+        line_text: payload.poemCard.lineText,
+        poem_title: payload.poemCard.poemTitle,
+        author: payload.poemCard.author,
+        dynasty: payload.poemCard.dynasty,
+        focus_character: character,
+        characters_included: [...new Set(payload.poemCard.lineText.replace(/[，。！？、；：]/g, '').split(''))],
+        difficulty_level: 'starter',
+        theme_tags: payload.poemCard.themeTags,
+        is_approved: true,
+        meaning_in_line: payload.poemCard.meaningInLine,
+        kid_explanation: payload.poemCard.kidExplanation,
+        source_note: `${payload.poemCard.poemTitle} 真实古诗原句（MiniMax 自动匹配）`,
+      };
+      await supabase.from('poem_library_entries').upsert(poemEntry);
+
+      poemLink = {
+        hanzi_id: hanziId,
+        poem_library_entry_id: poemEntry.id,
+        match_status: 'linked',
+        source: 'ai-generated',
+        review_note: 'MiniMax 自动匹配并立即启用。',
+        reviewed_by: 'system',
+      };
+    } else {
+      poemLink = {
+        hanzi_id: hanziId,
+        poem_library_entry_id: null,
+        match_status: 'missing',
+        source: 'ai-generated',
+        review_note: 'MiniMax 未找到合适诗句。',
+        reviewed_by: null,
+      };
+    }
+
+    await supabase.from('hanzi_poem_links').upsert(poemLink);
+    await supabase.from('custom_hanzi_requests').insert({
+      id: crypto.randomUUID(),
+      character,
+      age_band: ageBand,
+      context_theme: contextTheme ?? '自由单字',
+      was_created: true,
+      match_status: poemLink.match_status,
+    });
+
+    return json({
+      wasCreated: true,
+      hanzi: normalizeHanzi(hanziId, payload.hanzi, contextTheme ?? '自由单字'),
+      level: createCustomLevel(hanziId, character),
+      poemLink,
+      poemLibraryEntry: poemEntry,
+    });
+  } catch (error) {
+    return json({ error: error instanceof Error ? error.message : 'MiniMax generation failed.' }, 502);
   }
-
-  await supabase.from('hanzi_poem_links').upsert(poemLink);
-  await supabase.from('custom_hanzi_requests').insert({
-    id: crypto.randomUUID(),
-    character,
-    age_band: ageBand,
-    context_theme: contextTheme ?? '自由单字',
-    was_created: true,
-    match_status: poemLink.match_status,
-  });
-
-  return json({
-    wasCreated: true,
-    hanzi: normalizeHanzi(hanzi),
-    level: createCustomLevel(hanziId, character),
-    poemLink,
-    poemLibraryEntry: poemEntry,
-  });
 });
-
-function chooseCandidate(character: string, ageBand: AgeBand, contextTheme: string) {
-  return [...POEM_SEED]
-    .filter((entry) => entry.lineText.includes(character))
-    .sort((left, right) => score(right, ageBand, contextTheme, character) - score(left, ageBand, contextTheme, character))[0] ?? null;
-}
-
-function score(entry: PoemSeedEntry, ageBand: AgeBand, contextTheme: string, character: string) {
-  let points = 0;
-  if (entry.focusCharacter === character) points += 5;
-  if (entry.themeTags.includes(contextTheme)) points += 3;
-  if (entry.difficultyLevel === 'starter') points += 2;
-  if (ageBand === '6-8') points += 1;
-  return points;
-}
 
 function createCustomLevel(hanziId: string, character: string) {
   return {
@@ -206,22 +261,30 @@ function createCustomLevel(hanziId: string, character: string) {
   };
 }
 
-function normalizeHanzi(item: Record<string, unknown>) {
+function normalizeHanzi(
+  hanziId: string,
+  item: SingleHanziPayload['hanzi'],
+  projectTheme: string,
+) {
   return {
-    id: String(item.id),
-    character: String(item.character),
-    pinyin: String(item.pinyin ?? '待补'),
-    meaning: String(item.meaning ?? ''),
-    radical: String(item.radical ?? '自由单字'),
-    strokeCount: Number(item.stroke_count ?? 0),
-    animationLabel: `先观察“${String(item.character)}”的样子，再跟着描一描。`,
-    introText: String(item.meaning ?? ''),
-    prompt: `试着把“${String(item.character)}”稳稳地描出来。`,
-    encouragement: `很好，你已经开始认识“${String(item.character)}”了。`,
-    projectTheme: String(item.project_theme ?? '自由单字'),
-    observationHint: String(item.observation_hint ?? '先观察整体轮廓，再看笔画怎么走。'),
-    missionPrompt: String(item.mission_prompt ?? `先认识“${String(item.character)}”，再看看它在古诗里怎么出现。`),
-    vocabExamples: [],
+    id: hanziId,
+    character: item.character,
+    pinyin: item.pinyin,
+    meaning: item.meaning,
+    radical: item.radical,
+    strokeCount: 0,
+    animationLabel: `先观察“${item.character}”的样子，再跟着描一描。`,
+    introText: item.introText,
+    prompt: item.prompt,
+    encouragement: item.encouragement,
+    projectTheme,
+    observationHint: item.observationHint,
+    missionPrompt: item.missionPrompt,
+    vocabExamples: item.vocabExamples.map((entry, index) => ({
+      id: `${hanziId}-vocab-${index}`,
+      word: entry.word,
+      gloss: entry.gloss,
+    })),
   };
 }
 
