@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { HanziGrid } from '../../components/HanziGrid';
+import { HanziKnowledgePanel } from '../../components/HanziKnowledgePanel';
 import { PoemDeepDiveCard } from '../../components/PoemDeepDiveCard';
 import { SectionCard } from '../../components/SectionCard';
 import type { ProjectClueMapItem } from '../../data/camp-map';
@@ -114,6 +115,8 @@ export function LessonExperience({
                 setReadyForQuiz(true);
               }}
             />
+
+            <HanziKnowledgePanel hanzi={hanzi} />
 
             <button
               className="w-full rounded-[1.4rem] bg-slate-900 px-4 py-3 text-base font-bold text-white disabled:bg-slate-300"

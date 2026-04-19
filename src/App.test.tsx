@@ -43,7 +43,7 @@ describe('App', () => {
     expect(screen.getByTestId('generated-map-input')).toBeInTheDocument();
   });
 
-  it('opens a project lesson from the homepage map and reveals the hanzi in the lesson screen', async () => {
+  it('opens a project lesson from the homepage map and shows the knowledge panel', async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -53,7 +53,7 @@ describe('App', () => {
     expect(screen.getByTestId('lesson-screen')).toBeInTheDocument();
     expect(screen.getByText('线索 01')).toBeInTheDocument();
     expect(screen.getByText('树影收集')).toBeInTheDocument();
-    expect(screen.getByText('木')).toBeInTheDocument();
+    expect(screen.getByTestId('hanzi-knowledge-panel')).toBeInTheDocument();
   });
 
   it('shows a poem deep-dive card after finishing a linked project hanzi quiz', async () => {

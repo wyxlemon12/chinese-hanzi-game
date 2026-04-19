@@ -28,6 +28,9 @@ export interface HanziItem {
   observationHint: string;
   missionPrompt: string;
   vocabExamples: VocabExample[];
+  structureType?: 'single' | 'left-right' | 'top-bottom' | 'surround' | 'compound';
+  structureHint?: string;
+  parts?: string[];
 }
 
 export interface LessonLevel {
