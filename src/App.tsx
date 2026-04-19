@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { BottomNav } from './components/BottomNav';
 import { Celebration } from './components/Celebration';
-import { getProjectClueMapItems } from './data/camp-map';
+import { getProjectClueByLevelId, getProjectClueMapItems } from './data/camp-map';
 import {
   curriculum,
   getHanziItemById,
@@ -116,6 +116,10 @@ export default function App() {
       : activeLesson?.mode === 'generated'
         ? activeLesson.lesson.poemLibraryEntry
         : null;
+  const projectClueMeta =
+    activeLesson?.mode === 'project' && lessonLevel
+      ? getProjectClueByLevelId(lessonLevel.id)
+      : null;
 
   const completedSnapshots = snapshots.filter((snapshot) => snapshot.status === 'completed');
   const completedProjectLevelIds = completedSnapshots.map((snapshot) => snapshot.levelId);
@@ -240,6 +244,7 @@ export default function App() {
     return (
       <>
         <LessonExperience
+          clueMeta={projectClueMeta}
           key={lessonLevel.id}
           e2eMode={isE2EMode}
           mode={lessonMode}

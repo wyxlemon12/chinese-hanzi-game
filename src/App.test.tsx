@@ -38,19 +38,22 @@ describe('App', () => {
     await user.click(screen.getByTestId('start-adventure'));
 
     expect(screen.getByTestId('home-screen')).toBeInTheDocument();
+    expect(screen.getByTestId('camp-adventure-map')).toBeInTheDocument();
     expect(screen.getByTestId('custom-hanzi-input')).toBeInTheDocument();
     expect(screen.getByTestId('generated-map-input')).toBeInTheDocument();
   });
 
-  it('opens the first project lesson and shows the project flow before writing', async () => {
+  it('opens a project lesson from the homepage map and reveals the hanzi in the lesson screen', async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await user.click(screen.getByTestId('start-adventure'));
-    await user.click(screen.getByTestId('continue-lesson'));
+    await user.click(screen.getByTestId('clue-map-card-forest-camp-wood-01'));
 
     expect(screen.getByTestId('lesson-screen')).toBeInTheDocument();
-    expect(screen.getByTestId('start-quiz')).toBeInTheDocument();
+    expect(screen.getByText('线索 01')).toBeInTheDocument();
+    expect(screen.getByText('树影收集')).toBeInTheDocument();
+    expect(screen.getByText('木')).toBeInTheDocument();
   });
 
   it('shows a poem deep-dive card after finishing a linked project hanzi quiz', async () => {
@@ -59,7 +62,7 @@ describe('App', () => {
     render(<App />);
 
     await user.click(screen.getByTestId('start-adventure'));
-    await user.click(screen.getByTestId('continue-lesson'));
+    await user.click(screen.getByTestId('clue-map-card-forest-camp-wood-01'));
     await user.click(screen.getByTestId('start-quiz'));
     await user.click(screen.getByTestId('e2e-complete-quiz'));
 

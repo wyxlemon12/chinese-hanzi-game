@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { HanziGrid } from '../../components/HanziGrid';
 import { PoemDeepDiveCard } from '../../components/PoemDeepDiveCard';
 import { SectionCard } from '../../components/SectionCard';
+import type { ProjectClueMapItem } from '../../data/camp-map';
 import {
   curriculum,
   type HanziItem,
@@ -14,6 +15,7 @@ import { advanceLessonFlow, createLessonFlow, getQuizProgressLabel } from '../..
 import { StrokeQuizPanel } from './StrokeQuizPanel';
 
 interface LessonExperienceProps {
+  clueMeta?: ProjectClueMapItem | null;
   e2eMode?: boolean;
   mode?: 'project' | 'custom';
   level: LessonLevel;
@@ -26,6 +28,7 @@ interface LessonExperienceProps {
 }
 
 export function LessonExperience({
+  clueMeta = null,
   e2eMode = false,
   mode = 'project',
   level,
@@ -48,7 +51,7 @@ export function LessonExperience({
       return '';
     }
 
-    return '⭐'.repeat(flow.summary.stars);
+    return '★'.repeat(flow.summary.stars);
   }, [flow.summary]);
 
   const contextTitle = mode === 'project' ? level.title : `自由探索：${hanzi.character}`;
@@ -73,6 +76,20 @@ export function LessonExperience({
             {contextTitle}
           </div>
         </header>
+
+        {clueMeta && (
+          <SectionCard
+            eyebrow={`线索 ${String(clueMeta.clueIndex).padStart(2, '0')}`}
+            title={clueMeta.clueTitle}
+          >
+            <div className="space-y-3">
+              <p className="text-sm leading-6 text-slate-600">{clueMeta.clueDescription}</p>
+              <p className="text-sm font-semibold text-slate-900">
+                现在揭晓这个字，先看老师写，再开始描一描。
+              </p>
+            </div>
+          </SectionCard>
+        )}
 
         <SectionCard eyebrow="观察区" title={stageTitle}>
           <div className="space-y-4">
