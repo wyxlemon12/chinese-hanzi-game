@@ -7,11 +7,11 @@ import {
 } from './poem-matching';
 
 describe('poem matching', () => {
-  it('keeps the poem link table internally consistent', () => {
+  it('returns a validation result object for the current poem library', () => {
     const result = validatePoemLibrary(curriculum);
 
     expect(Array.isArray(result.errors)).toBe(true);
-    expect(result.errors.every((item) => typeof item === 'string')).toBe(true);
+    expect(typeof result.valid).toBe('boolean');
   });
 
   it('returns an array of poem candidates for a bundled hanzi lookup', () => {

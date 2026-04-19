@@ -1,6 +1,6 @@
+import { extendedHanziItems } from './layered-curriculum';
 import {
   toolCourses,
-  toolHanziItems,
   toolHanziPoemLinks,
   toolPoemLibrary,
 } from './tool-curriculum';
@@ -91,7 +91,7 @@ export interface Curriculum {
 }
 
 export const curriculum: Curriculum = {
-  hanziItems: toolHanziItems,
+  hanziItems: extendedHanziItems,
   courses: toolCourses,
   poemLibrary: toolPoemLibrary,
   hanziPoemLinks: toolHanziPoemLinks,
