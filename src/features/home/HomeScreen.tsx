@@ -1,14 +1,20 @@
 import { useState } from 'react';
-import type { LessonLevel } from '../../data/curriculum';
+import { CampAdventureMap } from '../../components/CampAdventureMap';
 import { SectionCard } from '../../components/SectionCard';
+import type { ProjectClueMapItem } from '../../data/camp-map';
+import type { LessonLevel } from '../../data/curriculum';
 
 interface HomeScreenProps {
+  activeProjectLevelId: string | null;
+  completedCount: number;
+  completedProjectLevelIds: string[];
   currentLevel: (LessonLevel & { unitTitle: string }) | null;
   currentUnitTitle: string;
-  completedCount: number;
   totalStars: number;
+  projectClues: ProjectClueMapItem[];
   onContinue: () => void;
   onOpenCourse: () => void;
+  onOpenProjectLesson: (levelId: string) => void;
   onStartCustomHanzi: (character: string) => Promise<void> | void;
   onGenerateAdventureMap: (options: { mode: 'topic' | 'random'; knowledgePoint?: string }) => Promise<void> | void;
   customError?: string | null;
@@ -17,12 +23,15 @@ interface HomeScreenProps {
 }
 
 export function HomeScreen({
+  activeProjectLevelId,
+  completedCount,
+  completedProjectLevelIds,
   currentLevel,
   currentUnitTitle,
-  completedCount,
   totalStars,
-  onContinue,
+  projectClues,
   onOpenCourse,
+  onOpenProjectLesson,
   onStartCustomHanzi,
   onGenerateAdventureMap,
   customError,
@@ -37,35 +46,43 @@ export function HomeScreen({
     return [...value.trim()].slice(-1).join('');
   };
 
+  const nextClueLabel = currentLevel ? currentLevel.title : '准备领取第一条线索';
+
   return (
     <div className="space-y-4" data-testid="home-screen">
-      <section className="rounded-[2.5rem] bg-[linear-gradient(135deg,_#14532d,_#166534_55%,_#38bdf8)] p-6 text-white shadow-[0_18px_50px_rgba(22,101,52,0.32)]">
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-white/70">项目冒险</p>
-        <h1 className="mt-3 text-3xl font-black">继续今天的营地冒险</h1>
-        <p className="mt-3 max-w-sm text-sm leading-6 text-white/85">
-          每收集一个字的线索，就能点亮一张古诗卡，把自然发现装进你的营地手账。
-        </p>
-      </section>
+      <section className="space-y-3">
+        <div className="rounded-[2.5rem] bg-[linear-gradient(135deg,_#14532d,_#166534_55%,_#38bdf8)] p-6 text-white shadow-[0_18px_50px_rgba(22,101,52,0.32)]">
+          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-white/70">项目冒险</p>
+          <h1 className="mt-3 text-3xl font-black">营地探险地图</h1>
+          <p className="mt-3 text-sm leading-6 text-white/85">
+            点开四周散落的线索卡，直接进入今天的写字任务。单字会在学习页里揭晓。
+          </p>
 
-      <SectionCard
-        eyebrow="当前任务"
-        title={currentUnitTitle}
-        action={<span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-amber-700">{totalStars} 星</span>}
-      >
-        <div className="space-y-3">
-          <p className="text-sm text-slate-600">{`你已经收集了 ${completedCount} 条线索，下一条线索就在前面。`}</p>
-          {currentLevel && (
-            <button
-              className="w-full rounded-[1.4rem] bg-slate-900 px-4 py-3 text-base font-bold text-white transition hover:bg-slate-800"
-              onClick={onContinue}
-              data-testid="continue-lesson"
-              type="button"
-            >
-              {`去完成${currentLevel.title}`}
-            </button>
-          )}
+          <div className="mt-4 flex flex-wrap gap-3 text-sm font-semibold">
+            <span className="rounded-full bg-white/15 px-3 py-1">{`已收集 ${completedCount} 条线索`}</span>
+            <span className="rounded-full bg-white/15 px-3 py-1">{`累计 ${totalStars} 颗星`}</span>
+          </div>
         </div>
-      </SectionCard>
+
+        <CampAdventureMap
+          activeClueId={activeProjectLevelId}
+          clues={projectClues}
+          completedClueIds={completedProjectLevelIds}
+          onOpenClue={onOpenProjectLesson}
+        />
+
+        <div className="rounded-[1.6rem] bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <span className="font-bold">当前推荐：</span>
+          {` ${nextClueLabel}`}
+          <button
+            className="ml-2 font-semibold underline-offset-4 hover:underline"
+            onClick={onOpenCourse}
+            type="button"
+          >
+            打开完整营地地图
+          </button>
+        </div>
+      </section>
 
       <SectionCard eyebrow="新探险地图" title="让我生成一张新的冒险地图">
         <div className="space-y-3">
@@ -103,7 +120,7 @@ export function HomeScreen({
           </button>
           {generatedMapLoading && (
             <p className="text-sm font-medium text-sky-700" data-testid="generated-map-loading">
-              正在整理 10 条新线索，也在补齐它们的古诗卡，请稍等……
+              正在整理 10 条新线索，也在补齐它们的古诗卡，请稍等…
             </p>
           )}
           {generatedMapError && (
@@ -152,28 +169,6 @@ export function HomeScreen({
             </p>
           )}
         </div>
-      </SectionCard>
-
-      <SectionCard eyebrow="冒险节奏" title="今天怎么玩">
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            ['先观察', '看老师写一遍'],
-            ['再动手', '把线索描出来'],
-            ['收古诗卡', '把发现装进手账'],
-          ].map(([title, body]) => (
-            <div key={title} className="rounded-[1.5rem] bg-slate-50 p-4">
-              <p className="font-bold text-slate-900">{title}</p>
-              <p className="mt-2 text-sm leading-6 text-slate-500">{body}</p>
-            </div>
-          ))}
-        </div>
-        <button
-          className="mt-4 text-sm font-semibold text-sky-600 underline-offset-4 hover:underline"
-          onClick={onOpenCourse}
-          type="button"
-        >
-          打开营地任务地图
-        </button>
       </SectionCard>
     </div>
   );

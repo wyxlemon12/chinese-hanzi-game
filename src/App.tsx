@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { BottomNav } from './components/BottomNav';
 import { Celebration } from './components/Celebration';
+import { getProjectClueMapItems } from './data/camp-map';
 import {
   curriculum,
   getHanziItemById,
@@ -117,6 +118,8 @@ export default function App() {
         : null;
 
   const completedSnapshots = snapshots.filter((snapshot) => snapshot.status === 'completed');
+  const completedProjectLevelIds = completedSnapshots.map((snapshot) => snapshot.levelId);
+  const projectClues = getProjectClueMapItems();
   const totalStars = completedSnapshots.reduce((sum, snapshot) => sum + snapshot.stars, 0);
 
   const handleStartAdventure = (ageBand: AgeBand) => {
@@ -274,7 +277,9 @@ export default function App() {
       <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pb-28 pt-6 sm:max-w-2xl">
         {tab === 'home' && (
           <HomeScreen
+            activeProjectLevelId={currentLevel?.id ?? null}
             completedCount={completedSnapshots.length}
+            completedProjectLevelIds={completedProjectLevelIds}
             currentLevel={currentLevel}
             currentUnitTitle={currentLevel?.unitTitle ?? '准备领取第一条线索'}
             customError={customError}
@@ -286,8 +291,10 @@ export default function App() {
               }
             }}
             onOpenCourse={() => setTab('course')}
+            onOpenProjectLesson={handleOpenProjectLesson}
             onStartCustomHanzi={handleStartCustomHanzi}
             onGenerateAdventureMap={handleGenerateAdventureMap}
+            projectClues={projectClues}
             totalStars={totalStars}
           />
         )}
