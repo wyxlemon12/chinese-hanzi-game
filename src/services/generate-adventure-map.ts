@@ -59,5 +59,5 @@ function readGeneratedMaps(): GeneratedAdventureMap[] {
 }
 
 function artificialDelay() {
-  return new Promise((resolve) => setTimeout(resolve, 800));
+  return new Promise((resolve) => setTimeout(resolve, 300));
 }

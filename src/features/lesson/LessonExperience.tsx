@@ -3,7 +3,6 @@ import { HanziGrid } from '../../components/HanziGrid';
 import { HanziKnowledgePanel } from '../../components/HanziKnowledgePanel';
 import { PoemDeepDiveCard } from '../../components/PoemDeepDiveCard';
 import { SectionCard } from '../../components/SectionCard';
-import type { ProjectClueMapItem } from '../../data/camp-map';
 import {
   curriculum,
   type HanziItem,
@@ -16,11 +15,11 @@ import { advanceLessonFlow, createLessonFlow, getQuizProgressLabel } from '../..
 import { StrokeQuizPanel } from './StrokeQuizPanel';
 
 interface LessonExperienceProps {
-  clueMeta?: ProjectClueMapItem | null;
   e2eMode?: boolean;
   mode?: 'project' | 'custom';
   level: LessonLevel;
   hanzi: HanziItem;
+  onOpenRelatedHanzi?: (hanziId: string) => void;
   poemLinkOverride?: HanziPoemLink | null;
   poemLibraryEntryOverride?: PoemLibraryEntry | null;
   onBack: () => void;
@@ -29,11 +28,11 @@ interface LessonExperienceProps {
 }
 
 export function LessonExperience({
-  clueMeta = null,
   e2eMode = false,
   mode = 'project',
   level,
   hanzi,
+  onOpenRelatedHanzi,
   poemLinkOverride,
   poemLibraryEntryOverride,
   onBack,
@@ -55,12 +54,16 @@ export function LessonExperience({
     return '★'.repeat(flow.summary.stars);
   }, [flow.summary]);
 
-  const contextTitle = mode === 'project' ? level.title : `自由探索：${hanzi.character}`;
-  const stageTitle = mode === 'project' ? '先看老师写' : '先认识这个字';
+  const contextTitle = mode === 'custom' ? `單字練習：${hanzi.character}` : `字組練習：${hanzi.character}`;
+  const practiceTitle = flow.quiz.round === 1 ? '第一輪：描紅練習' : '第二輪：空白默寫';
+  const practiceHint =
+    flow.quiz.round === 1
+      ? '這一輪會看到底稿，先把筆順和方向寫穩。'
+      : '這一輪只看田字格，自己把字寫出來。';
   const missionCopy =
-    mode === 'project'
-      ? hanzi.missionPrompt
-      : `这是你主动输入的“${hanzi.character}”，先看老师写，再自己描一描。`;
+    mode === 'custom'
+      ? `這是你主動選擇學習的「${hanzi.character}」，先看動畫，再自己練習。`
+      : `這個字屬於目前的 5 字組，先看清楚，再完成兩輪練習。`;
 
   return (
     <div className="min-h-screen bg-oat px-4 py-6" data-testid="lesson-screen">
@@ -78,21 +81,7 @@ export function LessonExperience({
           </div>
         </header>
 
-        {clueMeta && (
-          <SectionCard
-            eyebrow={`线索 ${String(clueMeta.clueIndex).padStart(2, '0')}`}
-            title={clueMeta.clueTitle}
-          >
-            <div className="space-y-3">
-              <p className="text-sm leading-6 text-slate-600">{clueMeta.clueDescription}</p>
-              <p className="text-sm font-semibold text-slate-900">
-                现在揭晓这个字，先看老师写，再开始描一描。
-              </p>
-            </div>
-          </SectionCard>
-        )}
-
-        <SectionCard eyebrow="观察区" title={stageTitle}>
+        <SectionCard eyebrow="字形觀察" title={`先認識「${hanzi.character}」`}>
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -100,7 +89,7 @@ export function LessonExperience({
                 <p className="mt-2 text-base text-slate-600">{hanzi.meaning}</p>
               </div>
               <div className="rounded-[1.5rem] bg-sky-50 px-4 py-3 text-right">
-                <p className="text-xs font-semibold text-sky-600">观察提示</p>
+                <p className="text-xs font-semibold text-sky-600">觀察提示</p>
                 <p className="mt-1 text-sm font-bold text-slate-900">{hanzi.observationHint}</p>
               </div>
             </div>
@@ -116,7 +105,7 @@ export function LessonExperience({
               }}
             />
 
-            <HanziKnowledgePanel hanzi={hanzi} />
+            <HanziKnowledgePanel hanzi={hanzi} onOpenRelatedHanzi={onOpenRelatedHanzi} />
 
             <button
               className="w-full rounded-[1.4rem] bg-slate-900 px-4 py-3 text-base font-bold text-white disabled:bg-slate-300"
@@ -127,27 +116,34 @@ export function LessonExperience({
               }}
               type="button"
             >
-              开始描一描
+              開始兩輪練習
             </button>
           </div>
         </SectionCard>
 
-        <SectionCard eyebrow="练习区" title={mode === 'project' ? '轮到你来试' : '自己写一写'}>
+        <SectionCard eyebrow="練習區" title="輪到你來寫">
           {flow.stage === 'demo' && (
             <div className="rounded-[1.5rem] bg-slate-50 p-4 text-sm leading-6 text-slate-500">
-              先完成上面的演示，然后点击“开始描一描”。
+              先完成上面的動畫，再點「開始兩輪練習」。
             </div>
           )}
 
           {flow.stage === 'quiz' && (
             <div className="space-y-4">
+              <div className="rounded-[1.5rem] bg-amber-50 px-4 py-3" data-testid="practice-round-banner">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
+                  {practiceTitle}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-700">{practiceHint}</p>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-[1.5rem] bg-slate-50 p-4">
-                  <p className="text-xs font-semibold text-slate-500">当前进度</p>
+                  <p className="text-xs font-semibold text-slate-500">目前進度</p>
                   <p className="mt-2 text-lg font-bold text-slate-900">{getQuizProgressLabel(flow)}</p>
                 </div>
                 <div className="rounded-[1.5rem] bg-rose-50 p-4">
-                  <p className="text-xs font-semibold text-rose-500">累计错误</p>
+                  <p className="text-xs font-semibold text-rose-500">累計錯誤</p>
                   <p className="mt-2 text-lg font-bold text-rose-700">{flow.quiz.totalMistakes}</p>
                 </div>
               </div>
@@ -158,6 +154,8 @@ export function LessonExperience({
 
               <StrokeQuizPanel
                 hanzi={hanzi.character}
+                mistakeOffset={flow.quiz.totalMistakes}
+                practiceMode={flow.quiz.practiceMode}
                 onCorrectStroke={(strokeData) => {
                   setFlow((current) =>
                     advanceLessonFlow(current, {
@@ -186,7 +184,9 @@ export function LessonExperience({
                     totalMistakes: summaryData.totalMistakes,
                   });
                   setFlow(nextFlow);
-                  onComplete(summaryData.totalMistakes);
+                  if (nextFlow.stage === 'complete') {
+                    onComplete(summaryData.totalMistakes);
+                  }
                 }}
               />
 
@@ -200,11 +200,13 @@ export function LessonExperience({
                       totalMistakes: flow.quiz.totalMistakes,
                     });
                     setFlow(nextFlow);
-                    onComplete(flow.quiz.totalMistakes);
+                    if (nextFlow.stage === 'complete') {
+                      onComplete(flow.quiz.totalMistakes);
+                    }
                   }}
                   type="button"
                 >
-                  Complete Quiz (E2E)
+                  完成目前輪次（E2E）
                 </button>
               )}
             </div>
@@ -213,14 +215,10 @@ export function LessonExperience({
           {flow.stage === 'complete' && flow.summary && (
             <div className="space-y-4" data-testid="lesson-summary">
               <div className="rounded-[1.8rem] bg-[linear-gradient(135deg,_#fef3c7,_#bfdbfe)] p-5 text-center">
-                <p className="text-sm font-semibold text-slate-600">收集完成</p>
+                <p className="text-sm font-semibold text-slate-600">練習完成</p>
                 <p className="mt-2 text-3xl font-black text-slate-900">{stars}</p>
-                <p className="mt-3 text-lg font-bold text-slate-900">
-                  {mode === 'project'
-                    ? `你收集到了“${hanzi.character}”这条线索`
-                    : `你已经学会了“${hanzi.character}”的基本写法`}
-                </p>
-                <p className="mt-2 text-sm text-slate-600">{`总错误次数：${flow.summary.totalMistakes}`}</p>
+                <p className="mt-3 text-lg font-bold text-slate-900">{`你已完成「${hanzi.character}」`}</p>
+                <p className="mt-2 text-sm text-slate-600">{`總錯誤次數：${flow.summary.totalMistakes}`}</p>
               </div>
 
               <PoemDeepDiveCard
@@ -235,7 +233,7 @@ export function LessonExperience({
                 onClick={onCloseSummary}
                 type="button"
               >
-                返回继续学习
+                返回
               </button>
             </div>
           )}

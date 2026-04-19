@@ -3,6 +3,7 @@ import { getSiblingHanziByRadical, getStructureMeta } from '../data/hanzi-knowle
 
 interface HanziKnowledgePanelProps {
   hanzi: HanziItem;
+  onOpenRelatedHanzi?: (hanziId: string) => void;
 }
 
 function getStructureLabel(type: NonNullable<HanziItem['structureType']>) {
@@ -20,7 +21,7 @@ function getStructureLabel(type: NonNullable<HanziItem['structureType']>) {
   }
 }
 
-export function HanziKnowledgePanel({ hanzi }: HanziKnowledgePanelProps) {
+export function HanziKnowledgePanel({ hanzi, onOpenRelatedHanzi }: HanziKnowledgePanelProps) {
   const structure = getStructureMeta(hanzi);
   const related = getSiblingHanziByRadical(hanzi.id, hanzi.radical);
 
@@ -32,9 +33,9 @@ export function HanziKnowledgePanel({ hanzi }: HanziKnowledgePanelProps) {
         <p className="mt-3 text-sm leading-6 text-slate-600">{structure.structureHint}</p>
         {structure.parts.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-2">
-            {structure.parts.map((part) => (
+            {structure.parts.map((part, index) => (
               <span
-                key={`${hanzi.id}-${part}`}
+                key={`${hanzi.id}-${part}-${index}`}
                 className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700"
               >
                 {part}
@@ -68,14 +69,15 @@ export function HanziKnowledgePanel({ hanzi }: HanziKnowledgePanelProps) {
         {related.length > 0 ? (
           <div className="mt-4 flex flex-wrap gap-2">
             {related.map((item) => (
-              <div
+              <button
                 key={item.id}
-                className="rounded-[1rem] bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900"
-                data-testid="related-radical-item"
-                id={`related-radical-item-${item.id}`}
+                className="rounded-[1rem] bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-100"
+                data-testid={`related-radical-item-${item.id}`}
+                onClick={() => onOpenRelatedHanzi?.(item.id)}
+                type="button"
               >
-                {item.character}
-              </div>
+                <span data-testid="related-radical-item">{item.character}</span>
+              </button>
             ))}
           </div>
         ) : (

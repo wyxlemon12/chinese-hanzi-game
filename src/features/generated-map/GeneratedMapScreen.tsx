@@ -3,58 +3,70 @@ import type { GeneratedAdventureMap } from '../../data/generated-map-seeds';
 
 interface GeneratedMapScreenProps {
   map: GeneratedAdventureMap;
+  completedLevelIds?: string[];
   onBack: () => void;
   onOpenLesson: (index: number) => void;
 }
 
-export function GeneratedMapScreen({ map, onBack, onOpenLesson }: GeneratedMapScreenProps) {
+export function GeneratedMapScreen({
+  map,
+  completedLevelIds = [],
+  onBack,
+  onOpenLesson,
+}: GeneratedMapScreenProps) {
   return (
     <div className="space-y-4" data-testid="generated-map-screen">
       <SectionCard
-        eyebrow="新探险地图"
+        eyebrow="字組資訊"
         title={map.themeTitle}
         action={
           <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-bold text-sky-700">
-            {map.mode === 'topic' ? '知识点生成' : '随机生成'}
+            {map.themeRuleType}
           </span>
         }
       >
         <p className="text-sm leading-6 text-slate-600">{map.themeDescription}</p>
         {map.knowledgePoint && (
-          <p className="mt-3 text-xs font-medium text-slate-500">{`知识点：${map.knowledgePoint}`}</p>
+          <p className="mt-3 text-xs font-medium text-slate-500">{`輸入來源：${map.knowledgePoint}`}</p>
         )}
       </SectionCard>
 
-      {map.lessons.map((lesson, index) => (
-        <SectionCard
-          key={lesson.level.id}
-          eyebrow="临时任务"
-          title={lesson.level.title}
-          action={
-            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
-              {lesson.poemLibraryEntry ? '古诗卡已补齐' : '待补古诗卡'}
-            </span>
-          }
-        >
-          <div className="space-y-3" data-testid="generated-map-level">
-            <p className="text-sm text-slate-600">{lesson.hanzi.missionPrompt}</p>
+      <div className="grid grid-cols-2 gap-3">
+        {map.lessons.map((lesson, index) => {
+          const completed = completedLevelIds.includes(lesson.level.id);
+          const focused = map.focusCharacter === lesson.hanzi.character;
+
+          return (
             <button
-              className="rounded-[1rem] bg-slate-900 px-4 py-2 text-sm font-bold text-white"
+              key={lesson.level.id}
+              className={`rounded-[1.6rem] border p-4 text-left transition ${
+                focused
+                  ? 'border-sky-400 bg-sky-50'
+                  : completed
+                    ? 'border-emerald-200 bg-emerald-50'
+                    : 'border-slate-200 bg-white'
+              }`}
+              data-testid="generated-map-level"
               onClick={() => onOpenLesson(index)}
               type="button"
             >
-              去完成这一条线索
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                {`第 ${index + 1} 字`}
+              </p>
+              <p className="mt-2 text-3xl font-black text-slate-900">{lesson.hanzi.character}</p>
+              <p className="mt-2 text-sm font-semibold text-slate-700">{lesson.hanzi.radical}</p>
+              <p className="mt-1 text-sm leading-6 text-slate-500">{lesson.hanzi.meaning}</p>
             </button>
-          </div>
-        </SectionCard>
-      ))}
+          );
+        })}
+      </div>
 
       <button
         className="w-full rounded-[1.3rem] border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700"
         onClick={onBack}
         type="button"
       >
-        返回首页
+        返回首頁
       </button>
     </div>
   );

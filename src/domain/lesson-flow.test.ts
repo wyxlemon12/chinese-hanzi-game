@@ -1,67 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import {
-  advanceLessonFlow,
-  createLessonFlow,
-  getQuizProgressLabel,
-} from './lesson-flow';
+import { advanceLessonFlow, createLessonFlow } from './lesson-flow';
 
-describe('lesson flow', () => {
-  it('starts on the demo stage and moves into quiz after animation completes', () => {
-    const flow = createLessonFlow('hanzi-ren');
+describe('lesson-flow double practice', () => {
+  it('moves from demo to the guided tracing round first', () => {
+    const flow = createLessonFlow('lesson-1');
+    const next = advanceLessonFlow(flow, { type: 'ANIMATION_FINISHED' });
 
-    expect(flow.stage).toBe('demo');
-
-    const afterAnimation = advanceLessonFlow(flow, {
-      type: 'ANIMATION_FINISHED',
-    });
-
-    expect(afterAnimation.stage).toBe('quiz');
-    expect(afterAnimation.quiz.totalMistakes).toBe(0);
-    expect(afterAnimation.quiz.completedStrokes).toBe(0);
+    expect(next.stage).toBe('quiz');
+    expect(next.quiz.round).toBe(1);
+    expect(next.quiz.practiceMode).toBe('guided');
   });
 
-  it('tracks quiz progress and finishes only after completion', () => {
-    const flow = advanceLessonFlow(createLessonFlow('hanzi-ren'), {
-      type: 'ANIMATION_FINISHED',
-    });
+  it('moves to the blank round after finishing the guided round', () => {
+    const guided = advanceLessonFlow(createLessonFlow('lesson-1'), { type: 'ANIMATION_FINISHED' });
+    const blank = advanceLessonFlow(guided, { type: 'QUIZ_COMPLETED', totalMistakes: 2 });
 
-    const afterCorrect = advanceLessonFlow(flow, {
-      type: 'QUIZ_CORRECT_STROKE',
-      strokeNum: 0,
-      mistakesOnStroke: 1,
-      totalMistakes: 1,
-      strokesRemaining: 1,
-    });
-
-    expect(afterCorrect.stage).toBe('quiz');
-    expect(afterCorrect.quiz.completedStrokes).toBe(1);
-    expect(getQuizProgressLabel(afterCorrect)).toBe('还剩 1 笔');
-
-    const afterComplete = advanceLessonFlow(afterCorrect, {
-      type: 'QUIZ_COMPLETED',
-      totalMistakes: 1,
-    });
-
-    expect(afterComplete.stage).toBe('complete');
-    expect(afterComplete.summary?.stars).toBe(3);
-    expect(afterComplete.summary?.passed).toBe(true);
+    expect(blank.stage).toBe('quiz');
+    expect(blank.quiz.round).toBe(2);
+    expect(blank.quiz.practiceMode).toBe('blank');
+    expect(blank.summary).toBeNull();
   });
 
-  it('records mistakes without leaving the quiz stage', () => {
-    const flow = advanceLessonFlow(createLessonFlow('hanzi-ren'), {
-      type: 'ANIMATION_FINISHED',
-    });
+  it('finishes the lesson only after the second round completes', () => {
+    const guided = advanceLessonFlow(createLessonFlow('lesson-1'), { type: 'ANIMATION_FINISHED' });
+    const blank = advanceLessonFlow(guided, { type: 'QUIZ_COMPLETED', totalMistakes: 2 });
+    const complete = advanceLessonFlow(blank, { type: 'QUIZ_COMPLETED', totalMistakes: 3 });
 
-    const afterMistake = advanceLessonFlow(flow, {
-      type: 'QUIZ_MISTAKE',
-      strokeNum: 1,
-      mistakesOnStroke: 2,
-      totalMistakes: 2,
-      strokesRemaining: 2,
-    });
-
-    expect(afterMistake.stage).toBe('quiz');
-    expect(afterMistake.quiz.totalMistakes).toBe(2);
-    expect(afterMistake.quiz.lastFeedback).toContain('第 2 笔');
+    expect(complete.stage).toBe('complete');
+    expect(complete.summary?.totalMistakes).toBe(3);
   });
 });

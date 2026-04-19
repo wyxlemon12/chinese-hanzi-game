@@ -1,9 +1,9 @@
 import {
-  projectCourses,
-  projectHanziItems,
-  projectHanziPoemLinks,
-  projectPoemLibrary,
-} from './project-curriculum';
+  toolCourses,
+  toolHanziItems,
+  toolHanziPoemLinks,
+  toolPoemLibrary,
+} from './tool-curriculum';
 
 export type AgeBand = '4-6' | '6-8' | '8-10';
 
@@ -91,10 +91,10 @@ export interface Curriculum {
 }
 
 export const curriculum: Curriculum = {
-  hanziItems: projectHanziItems,
-  courses: projectCourses,
-  poemLibrary: projectPoemLibrary,
-  hanziPoemLinks: projectHanziPoemLinks,
+  hanziItems: toolHanziItems,
+  courses: toolCourses,
+  poemLibrary: toolPoemLibrary,
+  hanziPoemLinks: toolHanziPoemLinks,
 };
 
 export function getHanziItemById(hanziItemId: string) {

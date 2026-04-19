@@ -1,5 +1,6 @@
 import { useEffect, useEffectEvent, useRef } from 'react';
 import HanziWriter from 'hanzi-writer';
+import type { PracticeMode } from '../../domain/lesson-flow';
 
 interface StrokeData {
   strokeNum: number;
@@ -15,6 +16,8 @@ interface SummaryData {
 
 interface StrokeQuizPanelProps {
   hanzi: string;
+  mistakeOffset: number;
+  practiceMode: PracticeMode;
   onMistake: (strokeData: StrokeData) => void;
   onCorrectStroke: (strokeData: StrokeData) => void;
   onComplete: (summaryData: SummaryData) => void;
@@ -22,15 +25,32 @@ interface StrokeQuizPanelProps {
 
 export function StrokeQuizPanel({
   hanzi,
+  mistakeOffset,
+  practiceMode,
   onMistake,
   onCorrectStroke,
   onComplete,
 }: StrokeQuizPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const writerRef = useRef<HanziWriter | null>(null);
-  const handleMistake = useEffectEvent(onMistake);
-  const handleCorrectStroke = useEffectEvent(onCorrectStroke);
-  const handleComplete = useEffectEvent(onComplete);
+  const handleMistake = useEffectEvent((strokeData: StrokeData) => {
+    onMistake({
+      ...strokeData,
+      totalMistakes: strokeData.totalMistakes + mistakeOffset,
+    });
+  });
+  const handleCorrectStroke = useEffectEvent((strokeData: StrokeData) => {
+    onCorrectStroke({
+      ...strokeData,
+      totalMistakes: strokeData.totalMistakes + mistakeOffset,
+    });
+  });
+  const handleComplete = useEffectEvent((summary: SummaryData) => {
+    onComplete({
+      ...summary,
+      totalMistakes: summary.totalMistakes + mistakeOffset,
+    });
+  });
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -44,12 +64,12 @@ export function StrokeQuizPanel({
         width: 280,
         height: 280,
         padding: 18,
-        showCharacter: false,
-        showOutline: true,
+        showCharacter: practiceMode === 'guided',
+        showOutline: practiceMode === 'guided',
         showHintAfterMisses: 2,
         highlightOnComplete: true,
-        strokeColor: '#0f172a',
-        outlineColor: '#cbd5e1',
+        strokeColor: practiceMode === 'guided' ? '#94a3b8' : '#0f172a',
+        outlineColor: practiceMode === 'guided' ? '#cbd5e1' : '#ffffff',
         drawingColor: '#0ea5e9',
       });
 
@@ -69,7 +89,7 @@ export function StrokeQuizPanel({
         // Ignore cleanup errors from HanziWriter.
       }
     };
-  }, [hanzi]);
+  }, [hanzi, practiceMode]);
 
   return (
     <div className="rounded-[2rem] bg-white p-4 shadow-inner" data-testid="quiz-panel">

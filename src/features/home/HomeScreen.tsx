@@ -1,171 +1,122 @@
 import { useState } from 'react';
-import { CampAdventureMap } from '../../components/CampAdventureMap';
 import { SectionCard } from '../../components/SectionCard';
-import type { ProjectClueMapItem } from '../../data/camp-map';
-import type { LessonLevel } from '../../data/curriculum';
 
 interface HomeScreenProps {
-  activeProjectLevelId: string | null;
   completedCount: number;
-  completedProjectLevelIds: string[];
-  currentLevel: (LessonLevel & { unitTitle: string }) | null;
-  totalStars: number;
-  projectClues: ProjectClueMapItem[];
-  onContinue: () => void;
-  onOpenCourse: () => void;
-  onOpenProjectLesson: (levelId: string) => void;
-  onStartCustomHanzi: (character: string) => Promise<void> | void;
-  onGenerateAdventureMap: (options: { mode: 'topic' | 'random'; knowledgePoint?: string }) => Promise<void> | void;
+  totalMistakes: number;
+  lastGroupTitle?: string | null;
+  onResumeGroup: () => void;
+  onStartSingleCharacter: (character: string) => Promise<void> | void;
+  onRandomGroup: () => Promise<void> | void;
   customError?: string | null;
-  generatedMapError?: string | null;
-  generatedMapLoading?: boolean;
+  groupError?: string | null;
+  groupLoading?: boolean;
 }
 
 export function HomeScreen({
-  activeProjectLevelId,
   completedCount,
-  completedProjectLevelIds,
-  currentLevel,
-  totalStars,
-  projectClues,
-  onOpenCourse,
-  onOpenProjectLesson,
-  onStartCustomHanzi,
-  onGenerateAdventureMap,
+  totalMistakes,
+  lastGroupTitle = null,
+  onResumeGroup,
+  onStartSingleCharacter,
+  onRandomGroup,
   customError,
-  generatedMapError,
-  generatedMapLoading = false,
+  groupError,
+  groupLoading = false,
 }: HomeScreenProps) {
-  const [customValue, setCustomValue] = useState('');
-  const [mapValue, setMapValue] = useState('');
+  const [characterValue, setCharacterValue] = useState('');
   const [isComposing, setIsComposing] = useState(false);
-
-  const normalizeSingleCharacter = (value: string) => {
-    return [...value.trim()].slice(-1).join('');
-  };
-
-  const nextClueLabel = currentLevel ? currentLevel.title : '准备领取第一条线索';
 
   return (
     <div className="space-y-4" data-testid="home-screen">
-      <section className="space-y-3">
-        <div className="rounded-[2.5rem] bg-[linear-gradient(135deg,_#14532d,_#166534_55%,_#38bdf8)] p-6 text-white shadow-[0_18px_50px_rgba(22,101,52,0.32)]">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-white/70">项目冒险</p>
-          <h1 className="mt-3 text-3xl font-black">营地探险地图</h1>
-          <p className="mt-3 text-sm leading-6 text-white/85">
-            点开四周散落的线索卡，直接进入今天的写字任务。单字会在学习页里揭晓。
-          </p>
-
-          <div className="mt-4 flex flex-wrap gap-3 text-sm font-semibold">
-            <span className="rounded-full bg-white/15 px-3 py-1">{`已收集 ${completedCount} 条线索`}</span>
-            <span className="rounded-full bg-white/15 px-3 py-1">{`累计 ${totalStars} 颗星`}</span>
-          </div>
-        </div>
-
-        <CampAdventureMap
-          activeClueId={activeProjectLevelId}
-          clues={projectClues}
-          completedClueIds={completedProjectLevelIds}
-          onOpenClue={onOpenProjectLesson}
-        />
-
-        <div className="rounded-[1.6rem] bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          <span className="font-bold">当前推荐：</span>
-          {` ${nextClueLabel}`}
-          <button
-            className="ml-2 font-semibold underline-offset-4 hover:underline"
-            onClick={onOpenCourse}
-            type="button"
-          >
-            打开完整营地地图
-          </button>
+      <section className="rounded-[2.5rem] bg-[linear-gradient(135deg,_#0f172a,_#1d4ed8_60%,_#38bdf8)] p-6 text-white shadow-[0_18px_50px_rgba(15,23,42,0.25)]">
+        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-white/70">繁體字筆畫輔助工具</p>
+        <h1 className="mt-3 text-3xl font-black">快速選字，直接開始練習</h1>
+        <p className="mt-3 max-w-md text-sm leading-6 text-white/85">
+          輸入想學的字，或直接抽一組 5 個字。每個字都會先看動畫，再描紅一輪、空白默寫一輪。
+        </p>
+        <div className="mt-4 flex flex-wrap gap-3 text-sm font-semibold">
+          <span className="rounded-full bg-white/15 px-3 py-1">{`已完成 ${completedCount} 個字`}</span>
+          <span className="rounded-full bg-white/15 px-3 py-1">{`累計錯誤 ${totalMistakes} 次`}</span>
         </div>
       </section>
 
-      <SectionCard eyebrow="新探险地图" title="让我生成一张新的冒险地图">
+      <SectionCard eyebrow="輸入單字" title="我想學這個字">
         <div className="space-y-3">
           <p className="text-sm leading-6 text-slate-600">
-            输入一个知识点，比如“春天”“木字旁”“和水有关”，系统会一次生成 10 个字的新地图。
+            直接輸入一個字。系統會先自動轉成對應繁體，再判斷要進入 5 字組還是單字模式。
           </p>
           <div className="flex items-center gap-3">
             <input
-              className="flex-1 rounded-[1.3rem] border border-slate-200 bg-white px-4 py-3 text-lg font-semibold text-slate-900 outline-none focus:border-sky-400"
-              data-testid="generated-map-input"
-              placeholder="输入知识点"
-              value={mapValue}
+              className="flex-1 rounded-[1.3rem] border border-slate-200 bg-white px-4 py-3 text-center text-2xl font-bold text-slate-900 outline-none focus:border-sky-400"
+              data-testid="character-input"
+              placeholder="字"
+              value={characterValue}
+              onCompositionStart={() => setIsComposing(true)}
+              onCompositionEnd={(event) => {
+                setIsComposing(false);
+                setCharacterValue(event.currentTarget.value.trim());
+              }}
               onChange={(event) => {
-                setMapValue(event.target.value);
+                const nextValue = event.target.value;
+                setCharacterValue(isComposing ? nextValue : nextValue.trim());
               }}
             />
             <button
-              className="rounded-[1.2rem] bg-emerald-600 px-4 py-3 text-sm font-bold text-white"
-              data-testid="generate-map-start"
-              disabled={generatedMapLoading}
-              onClick={() => onGenerateAdventureMap({ mode: 'topic', knowledgePoint: mapValue })}
+              className="rounded-[1.2rem] bg-sky-500 px-4 py-3 text-sm font-bold text-white"
+              data-testid="character-start"
+              onClick={() => onStartSingleCharacter(characterValue)}
               type="button"
             >
-              生成地图
+              開始練習
             </button>
           </div>
-          <button
-            className="w-full rounded-[1.2rem] border border-dashed border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700"
-            data-testid="generate-map-random"
-            disabled={generatedMapLoading}
-            onClick={() => onGenerateAdventureMap({ mode: 'random' })}
-            type="button"
-          >
-            随机来一张新地图
-          </button>
-          {generatedMapLoading && (
-            <p className="text-sm font-medium text-sky-700" data-testid="generated-map-loading">
-              正在整理 10 条新线索，也在补齐它们的古诗卡，请稍等…
-            </p>
-          )}
-          {generatedMapError && (
-            <p className="text-sm font-medium text-rose-600" data-testid="generated-map-error">
-              {generatedMapError}
+          {customError && (
+            <p className="text-sm font-medium text-rose-600" data-testid="character-error">
+              {customError}
             </p>
           )}
         </div>
       </SectionCard>
 
-      <SectionCard eyebrow="自由单字" title="我想马上学一个字">
+      <SectionCard eyebrow="字組練習" title="隨機來一組">
         <div className="space-y-3">
           <p className="text-sm leading-6 text-slate-600">
-            输入一个你现在就想认识的单字。系统会马上帮你找到可学习的内容和对应古诗卡。
+            系統會從預先整理好的 10 組裡隨機抽出一組，每組 5 個字，規則包含同部首、同結構、同主題或同音對比。
           </p>
-          <div className="flex items-center gap-3">
-            <input
-              className="flex-1 rounded-[1.3rem] border border-slate-200 bg-white px-4 py-3 text-center text-2xl font-bold text-slate-900 outline-none focus:border-sky-400"
-              data-testid="custom-hanzi-input"
-              placeholder="字"
-              value={customValue}
-              onCompositionStart={() => {
-                setIsComposing(true);
-              }}
-              onCompositionEnd={(event) => {
-                setIsComposing(false);
-                setCustomValue(normalizeSingleCharacter(event.currentTarget.value));
-              }}
-              onChange={(event) => {
-                const nextValue = event.target.value;
-                setCustomValue(isComposing ? nextValue : normalizeSingleCharacter(nextValue));
-              }}
-            />
-            <button
-              className="rounded-[1.2rem] bg-sky-500 px-4 py-3 text-sm font-bold text-white"
-              data-testid="custom-hanzi-start"
-              onClick={() => onStartCustomHanzi(customValue)}
-              type="button"
-            >
-              开始学习
-            </button>
-          </div>
-          {customError && (
-            <p className="text-sm font-medium text-rose-600" data-testid="custom-hanzi-error">
-              {customError}
+          <button
+            className="w-full rounded-[1.2rem] bg-emerald-600 px-4 py-3 text-sm font-bold text-white"
+            data-testid="random-group-start"
+            disabled={groupLoading}
+            onClick={onRandomGroup}
+            type="button"
+          >
+            隨機抽一組
+          </button>
+          {groupError && (
+            <p className="text-sm font-medium text-rose-600" data-testid="group-error">
+              {groupError}
             </p>
           )}
+        </div>
+      </SectionCard>
+
+      <SectionCard eyebrow="繼續進度" title="回到上一組">
+        <div className="space-y-3">
+          <p className="text-sm leading-6 text-slate-600">
+            {lastGroupTitle
+              ? `你上次停在「${lastGroupTitle}」，可以直接回去接著練。`
+              : '目前還沒有最近練習的字組，先輸入一個字或抽一組開始。'}
+          </p>
+          <button
+            className="w-full rounded-[1.2rem] border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:text-slate-400"
+            data-testid="resume-group"
+            disabled={!lastGroupTitle}
+            onClick={onResumeGroup}
+            type="button"
+          >
+            繼續上一組
+          </button>
         </div>
       </SectionCard>
     </div>

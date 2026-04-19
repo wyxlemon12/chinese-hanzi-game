@@ -9,40 +9,34 @@ beforeEach(() => {
 });
 
 describe('matchAndUpsertHanzi', () => {
-  it('returns full content for an existing hanzi', async () => {
+  it('returns existing content for a character already in the 50-character library', async () => {
     const lesson = await matchAndUpsertHanzi({
-      character: '木',
+      character: '树',
       ageBand: '6-8',
     });
 
     expect(lesson.wasCreated).toBe(false);
-    expect(lesson.hanzi.character).toBe('木');
-    expect(lesson.poemLink?.matchStatus).toBe('linked');
+    expect(lesson.hanzi.character).toBe('樹');
   });
 
-  it('creates a new custom lesson for an unseen hanzi and attaches a poem when matched', async () => {
+  it('creates a new custom lesson for a character outside the 50-character library', async () => {
     const lesson = await matchAndUpsertHanzi({
-      character: '花',
+      character: '學',
       ageBand: '6-8',
-      contextTheme: '自由单字',
+      contextTheme: '自由單字',
     });
 
     expect(lesson.wasCreated).toBe(true);
-    expect(lesson.hanzi.character).toBe('花');
-    expect(lesson.poemLink?.matchStatus).toBe('linked');
-    expect(lesson.poemLibraryEntry?.lineText).toContain('花');
+    expect(lesson.hanzi.character).toBe('學');
   });
 
-  it('falls back to a missing poem state when the character is not in the curated poem library', async () => {
+  it('reuses an existing bundled poem when the normalized character already has one', async () => {
     const lesson = await matchAndUpsertHanzi({
-      character: '火',
+      character: '樹',
       ageBand: '6-8',
-      contextTheme: '自由单字',
+      contextTheme: '自由單字',
     });
 
-    expect(lesson.wasCreated).toBe(true);
-    expect(lesson.hanzi.character).toBe('火');
-    expect(lesson.poemLink?.matchStatus).toBe('missing');
-    expect(lesson.poemLibraryEntry).toBeNull();
+    expect(lesson.poemLink?.matchStatus).toBe('linked');
   });
 });

@@ -4,10 +4,10 @@ interface BottomNavProps {
 }
 
 const items = [
-  { key: 'home', label: '首页', icon: '🏠' },
-  { key: 'course', label: '闯关', icon: '🧭' },
-  { key: 'rewards', label: '奖励', icon: '⭐' },
-  { key: 'profile', label: '我的', icon: '🙂' },
+  { key: 'home', label: '首頁', icon: '字' },
+  { key: 'course', label: '字組', icon: '組' },
+  { key: 'rewards', label: '紀錄', icon: '記' },
+  { key: 'profile', label: '我的', icon: '我' },
 ] as const;
 
 export function BottomNav({ current, onChange }: BottomNavProps) {
@@ -18,9 +18,7 @@ export function BottomNav({ current, onChange }: BottomNavProps) {
           <button
             key={item.key}
             className={`rounded-3xl px-3 py-2 text-sm font-semibold transition ${
-              current === item.key
-                ? 'bg-sky-500 text-white shadow-lg'
-                : 'bg-slate-100 text-slate-600'
+              current === item.key ? 'bg-sky-500 text-white shadow-lg' : 'bg-slate-100 text-slate-600'
             }`}
             onClick={() => onChange(item.key)}
             type="button"

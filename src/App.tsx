@@ -1,24 +1,26 @@
 import { useState } from 'react';
 import { BottomNav } from './components/BottomNav';
 import { Celebration } from './components/Celebration';
-import { getProjectClueByLevelId, getProjectClueMapItems } from './data/camp-map';
+import {
+  getCharacterGroupByCharacter,
+  getCharacterGroupById,
+  normalizeToTraditional,
+} from './data/character-groups';
 import {
   curriculum,
   getHanziItemById,
-  type AgeBand,
   type HanziItem,
   type HanziPoemLink,
   type LessonLevel,
   type PoemLibraryEntry,
 } from './data/curriculum';
 import { type GeneratedAdventureMap } from './data/generated-map-seeds';
-import { createProgressRepository, type ProgressSnapshot, type StorageLike } from './domain/progress-store';
+import { createProgressRepository, type StorageLike } from './domain/progress-store';
 import { AdminDashboard } from './features/admin/AdminDashboard';
 import { CourseFlowScreen } from './features/course/CourseFlowScreen';
 import { GeneratedMapScreen } from './features/generated-map/GeneratedMapScreen';
 import { HomeScreen } from './features/home/HomeScreen';
 import { LessonExperience } from './features/lesson/LessonExperience';
-import { OnboardingScreen } from './features/onboarding/OnboardingScreen';
 import { ProfileScreen } from './features/profile/ProfileScreen';
 import { RewardsScreen } from './features/rewards/RewardsScreen';
 import {
@@ -32,7 +34,6 @@ type TabKey = 'home' | 'course' | 'rewards' | 'profile';
 type OverlayKey = 'lesson' | 'admin' | 'generated-map' | null;
 
 type ActiveLesson =
-  | { mode: 'project'; levelId: string }
   | { mode: 'custom'; lesson: ResolvedCustomHanziLesson }
   | { mode: 'generated'; mapId: string; lesson: GeneratedAdventureMap['lessons'][number] }
   | null;
@@ -70,40 +71,36 @@ export default function App() {
     typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get('e2e') === '1';
 
-  const [learner, setLearner] = useState(() => repository.getLearnerProfile());
+  const [learner] = useState(() => repository.getLearnerProfile() ?? repository.ensureLearnerProfile('6-8'));
   const [tab, setTab] = useState<TabKey>('home');
   const [overlay, setOverlay] = useState<OverlayKey>(null);
   const [activeLesson, setActiveLesson] = useState<ActiveLesson>(null);
   const [generatedMap, setGeneratedMap] = useState<GeneratedAdventureMap | null>(() => getLatestGeneratedAdventureMap());
   const [customError, setCustomError] = useState<string | null>(null);
-  const [generatedMapError, setGeneratedMapError] = useState<string | null>(null);
-  const [isGeneratingMap, setIsGeneratingMap] = useState(false);
+  const [groupError, setGroupError] = useState<string | null>(null);
+  const [isGeneratingGroup, setIsGeneratingGroup] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
 
   const levels = getAllLevels();
+  const units = curriculum.courses[0]?.units ?? [];
   const snapshots = repository.getSnapshots();
   const attempts = repository.getAttempts();
+  const completedSnapshots = snapshots.filter((snapshot) => snapshot.status === 'completed');
+  const completedLevelIds = completedSnapshots.map((snapshot) => snapshot.levelId);
+  const totalMistakes = attempts.reduce((sum, attempt) => sum + attempt.totalMistakes, 0);
 
-  const currentLevel = getCurrentLevel(levels, snapshots);
-  const activeProjectLevel =
-    activeLesson?.mode === 'project'
-      ? levels.find((level) => level.id === activeLesson.levelId) ?? currentLevel
-      : currentLevel;
-  const activeProjectHanzi = activeProjectLevel ? getHanziItemById(activeProjectLevel.hanziItemId) : null;
-
-  const lessonMode = activeLesson?.mode === 'generated' ? 'project' : activeLesson?.mode ?? 'project';
   const lessonLevel: LessonLevel | null =
     activeLesson?.mode === 'custom'
       ? activeLesson.lesson.level
       : activeLesson?.mode === 'generated'
         ? activeLesson.lesson.level
-        : activeProjectLevel;
+        : null;
   const lessonHanzi: HanziItem | null =
     activeLesson?.mode === 'custom'
       ? activeLesson.lesson.hanzi
       : activeLesson?.mode === 'generated'
         ? activeLesson.lesson.hanzi
-        : activeProjectHanzi;
+        : null;
   const lessonPoemLink: HanziPoemLink | null =
     activeLesson?.mode === 'custom'
       ? activeLesson.lesson.poemLink
@@ -116,25 +113,53 @@ export default function App() {
       : activeLesson?.mode === 'generated'
         ? activeLesson.lesson.poemLibraryEntry
         : null;
-  const projectClueMeta =
-    activeLesson?.mode === 'project' && lessonLevel
-      ? getProjectClueByLevelId(lessonLevel.id)
-      : null;
 
-  const completedSnapshots = snapshots.filter((snapshot) => snapshot.status === 'completed');
-  const completedProjectLevelIds = completedSnapshots.map((snapshot) => snapshot.levelId);
-  const projectClues = getProjectClueMapItems();
-  const totalStars = completedSnapshots.reduce((sum, snapshot) => sum + snapshot.stars, 0);
+  const openGeneratedGroup = async (knowledgePoint?: string, mode: 'topic' | 'random' = 'topic') => {
+    setGroupError(null);
+    setIsGeneratingGroup(true);
 
-  const handleStartAdventure = (ageBand: AgeBand) => {
-    setLearner(repository.ensureLearnerProfile(ageBand));
-    repository.startSession();
-    setTab('home');
+    try {
+      const group = await generateAdventureMap({
+        ageBand: learner.ageBand,
+        knowledgePoint,
+        mode,
+      });
+
+      setGeneratedMap(group);
+      setOverlay('generated-map');
+    } catch (error) {
+      setGroupError(error instanceof Error ? error.message : '這一組字暫時打不開。');
+    } finally {
+      setIsGeneratingGroup(false);
+    }
   };
 
-  const handleOpenProjectLesson = (levelId: string) => {
-    setActiveLesson({ mode: 'project', levelId });
-    setOverlay('lesson');
+  const handleStartSingleCharacter = async (rawInput: string) => {
+    const normalizedCharacter = normalizeToTraditional(rawInput);
+
+    if (!normalizedCharacter || [...normalizedCharacter].length !== 1) {
+      setCustomError('請輸入一個單字。');
+      return;
+    }
+
+    const grouped = getCharacterGroupByCharacter(normalizedCharacter);
+    if (grouped) {
+      setCustomError(null);
+      await openGeneratedGroup(normalizedCharacter, 'topic');
+      return;
+    }
+
+    try {
+      setCustomError(null);
+      const resolved = await matchAndUpsertHanzi({
+        character: normalizedCharacter,
+        ageBand: learner.ageBand,
+      });
+      setActiveLesson({ mode: 'custom', lesson: resolved });
+      setOverlay('lesson');
+    } catch (error) {
+      setCustomError(error instanceof Error ? error.message : '這個字暫時還不能練習。');
+    }
   };
 
   const handleOpenGeneratedLesson = (index: number) => {
@@ -150,40 +175,23 @@ export default function App() {
     setOverlay('lesson');
   };
 
-  const handleGenerateAdventureMap = async (options: { mode: 'topic' | 'random'; knowledgePoint?: string }) => {
-    try {
-      setGeneratedMapError(null);
-      setIsGeneratingMap(true);
-      const result = await generateAdventureMap({
-        mode: options.mode,
-        knowledgePoint: options.knowledgePoint,
-        ageBand: learner?.ageBand ?? '6-8',
-      });
-      setGeneratedMap(result);
-      setOverlay('generated-map');
-    } catch (error) {
-      setGeneratedMapError(error instanceof Error ? error.message : '新的探险地图暂时还生成不出来');
-    } finally {
-      setIsGeneratingMap(false);
+  const handleOpenRelatedHanzi = async (hanziId: string) => {
+    const nextLevel = levels.find((level) => level.hanziItemId === hanziId);
+    if (nextLevel && generatedMap) {
+      const index = generatedMap.lessons.findIndex((lesson) => lesson.level.hanziItemId === hanziId);
+      if (index >= 0) {
+        handleOpenGeneratedLesson(index);
+        return;
+      }
+    }
+
+    const nextHanzi = getHanziItemById(hanziId);
+    if (nextHanzi) {
+      await handleStartSingleCharacter(nextHanzi.character);
     }
   };
 
-  const handleStartCustomHanzi = async (character: string) => {
-    try {
-      setCustomError(null);
-      const resolved = await matchAndUpsertHanzi({
-        character,
-        ageBand: learner?.ageBand ?? '6-8',
-      });
-
-      setActiveLesson({ mode: 'custom', lesson: resolved });
-      setOverlay('lesson');
-    } catch (error) {
-      setCustomError(error instanceof Error ? error.message : '这个字暂时还不能学习');
-    }
-  };
-
-  const handleLessonComplete = (totalMistakes: number) => {
+  const handleLessonComplete = (totalMistakesForLesson: number) => {
     const session = repository.getCurrentSession() ?? repository.startSession();
     if (!lessonLevel || !lessonHanzi) {
       return;
@@ -193,28 +201,28 @@ export default function App() {
       sessionId: session.id,
       hanziItemId: lessonHanzi.id,
       levelId: lessonLevel.id,
-      totalMistakes,
+      totalMistakes: totalMistakesForLesson,
       result: 'passed',
     });
 
     setShowCelebration(true);
   };
 
-  const handleResetProgress = () => {
-    repository.reset();
-    setLearner(null);
-    setTab('home');
-    setOverlay(null);
-    setActiveLesson(null);
-    clearGeneratedAdventureMaps();
-    setGeneratedMap(null);
-    setCustomError(null);
-    setGeneratedMapError(null);
+  const handleResumeGroup = () => {
+    if (generatedMap) {
+      setOverlay('generated-map');
+    }
   };
 
-  if (!learner) {
-    return <OnboardingScreen onStart={handleStartAdventure} />;
-  }
+  const handleResetProgress = () => {
+    repository.reset();
+    clearGeneratedAdventureMaps();
+    setGeneratedMap(null);
+    setActiveLesson(null);
+    setOverlay(null);
+    setCustomError(null);
+    setGroupError(null);
+  };
 
   if (overlay === 'admin') {
     return (
@@ -231,10 +239,9 @@ export default function App() {
   if (overlay === 'generated-map' && generatedMap) {
     return (
       <GeneratedMapScreen
+        completedLevelIds={completedLevelIds}
         map={generatedMap}
-        onBack={() => {
-          setOverlay(null);
-        }}
+        onBack={() => setOverlay(null)}
         onOpenLesson={handleOpenGeneratedLesson}
       />
     );
@@ -244,19 +251,17 @@ export default function App() {
     return (
       <>
         <LessonExperience
-          clueMeta={projectClueMeta}
-          key={lessonLevel.id}
+          key={`${lessonLevel.id}-${lessonHanzi.id}`}
           e2eMode={isE2EMode}
-          mode={lessonMode}
+          mode={activeLesson?.mode === 'custom' ? 'custom' : 'project'}
           hanzi={lessonHanzi}
           level={lessonLevel}
-          poemLinkOverride={lessonPoemLink}
-          poemLibraryEntryOverride={lessonPoemEntry}
           onBack={() => {
-            setOverlay(activeLesson?.mode === 'generated' ? 'generated-map' : null);
-          }}
-          onComplete={(totalMistakes) => {
-            handleLessonComplete(totalMistakes);
+            if (activeLesson?.mode === 'generated') {
+              setOverlay('generated-map');
+            } else {
+              setOverlay(null);
+            }
           }}
           onCloseSummary={() => {
             if (activeLesson?.mode === 'generated') {
@@ -266,6 +271,10 @@ export default function App() {
             }
             setActiveLesson(null);
           }}
+          onComplete={handleLessonComplete}
+          onOpenRelatedHanzi={handleOpenRelatedHanzi}
+          poemLibraryEntryOverride={lessonPoemEntry}
+          poemLinkOverride={lessonPoemLink}
         />
         <Celebration
           show={showCelebration}
@@ -282,39 +291,34 @@ export default function App() {
       <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pb-28 pt-6 sm:max-w-2xl">
         {tab === 'home' && (
           <HomeScreen
-            activeProjectLevelId={currentLevel?.id ?? null}
             completedCount={completedSnapshots.length}
-            completedProjectLevelIds={completedProjectLevelIds}
-            currentLevel={currentLevel}
             customError={customError}
-            generatedMapError={generatedMapError}
-            generatedMapLoading={isGeneratingMap}
-            onContinue={() => {
-              if (currentLevel) {
-                handleOpenProjectLesson(currentLevel.id);
-              }
-            }}
-            onOpenCourse={() => setTab('course')}
-            onOpenProjectLesson={handleOpenProjectLesson}
-            onStartCustomHanzi={handleStartCustomHanzi}
-            onGenerateAdventureMap={handleGenerateAdventureMap}
-            projectClues={projectClues}
-            totalStars={totalStars}
+            groupError={groupError}
+            groupLoading={isGeneratingGroup}
+            lastGroupTitle={generatedMap?.themeTitle ?? null}
+            onRandomGroup={() => openGeneratedGroup(undefined, 'random')}
+            onResumeGroup={handleResumeGroup}
+            onStartSingleCharacter={handleStartSingleCharacter}
+            totalMistakes={totalMistakes}
           />
         )}
         {tab === 'course' && (
           <CourseFlowScreen
-            levels={levels}
-            onStartLevel={handleOpenProjectLesson}
             snapshots={snapshots}
+            units={units}
+            onStartGroup={(unitId) => {
+              const unit = getCharacterGroupById(unitId);
+              if (unit) {
+                void openGeneratedGroup(unit.characters[0], 'topic');
+              }
+            }}
           />
         )}
         {tab === 'rewards' && (
           <RewardsScreen
-            completedLevels={completedSnapshots.length}
-            levels={levels}
-            snapshots={snapshots}
-            totalStars={totalStars}
+            attempts={attempts}
+            completedCount={completedSnapshots.length}
+            totalMistakes={totalMistakes}
           />
         )}
         {tab === 'profile' && (
@@ -328,20 +332,4 @@ export default function App() {
       <BottomNav current={tab} onChange={setTab} />
     </div>
   );
-}
-
-function getCurrentLevel(
-  levels: Array<LessonLevel & { unitTitle: string }>,
-  snapshots: ProgressSnapshot[],
-) {
-  const snapshotMap = new Map(snapshots.map((snapshot) => [snapshot.levelId, snapshot]));
-
-  for (const level of levels) {
-    const snapshot = snapshotMap.get(level.id);
-    if (!snapshot || snapshot.status !== 'completed') {
-      return level;
-    }
-  }
-
-  return levels[levels.length - 1] ?? null;
 }

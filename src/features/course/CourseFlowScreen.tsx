@@ -1,49 +1,55 @@
-import type { LessonLevel } from '../../data/curriculum';
+import type { LessonUnit } from '../../data/curriculum';
 import type { ProgressSnapshot } from '../../domain/progress-store';
 import { SectionCard } from '../../components/SectionCard';
 
 interface CourseFlowScreenProps {
-  levels: Array<LessonLevel & { unitTitle: string }>;
+  units: LessonUnit[];
   snapshots: ProgressSnapshot[];
-  onStartLevel: (levelId: string) => void;
+  onStartGroup: (unitId: string) => void;
 }
 
-export function CourseFlowScreen({ levels, snapshots, onStartLevel }: CourseFlowScreenProps) {
-  const snapshotMap = new Map(snapshots.map((snapshot) => [snapshot.levelId, snapshot]));
-
+export function CourseFlowScreen({ units, snapshots, onStartGroup }: CourseFlowScreenProps) {
   return (
     <div className="space-y-4">
-      <SectionCard eyebrow="任务地图" title="森林营地线索图">
+      <SectionCard eyebrow="字組列表" title="全部 5 字組">
         <p className="text-sm leading-6 text-slate-600">
-          先看老师写，再自己描一描。每完成一条线索，就能解锁一张古诗卡。
+          這裡整理了首批 10 組繁體字練習。你可以按部首、結構、主題或常見對比來選一組開始。
         </p>
       </SectionCard>
 
-      {levels.map((level, index) => {
-        const snapshot = snapshotMap.get(level.id);
-        const isCompleted = snapshot?.status === 'completed';
-        const isUnlocked = index === 0 || snapshotMap.get(levels[index - 1].id)?.status === 'completed';
+      {units.map((unit) => {
+        const completedCount = unit.levels.filter((level) =>
+          snapshots.some((snapshot) => snapshot.levelId === level.id && snapshot.status === 'completed'),
+        ).length;
 
         return (
           <SectionCard
-            key={level.id}
-            eyebrow={level.unitTitle}
-            title={level.title}
+            key={unit.id}
+            eyebrow="5 字一組"
+            title={unit.title}
             action={
-              <span className={`rounded-full px-3 py-1 text-xs font-bold ${isCompleted ? 'bg-emerald-100 text-emerald-700' : isUnlocked ? 'bg-sky-100 text-sky-700' : 'bg-slate-100 text-slate-400'}`}>
-                {isCompleted ? '已收集' : isUnlocked ? '可挑战' : '待解锁'}
+              <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-bold text-sky-700">
+                {`${completedCount}/${unit.levels.length}`}
               </span>
             }
           >
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-slate-600">看老师写、自己描一描，再把古诗卡收进营地手账。</p>
+              <div className="flex flex-wrap gap-2">
+                {unit.levels.map((level) => (
+                  <span
+                    key={level.id}
+                    className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700"
+                  >
+                    {level.title}
+                  </span>
+                ))}
+              </div>
               <button
-                className="rounded-[1rem] bg-slate-900 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-                disabled={!isUnlocked}
-                onClick={() => onStartLevel(level.id)}
+                className="shrink-0 rounded-[1rem] bg-slate-900 px-4 py-2 text-sm font-bold text-white"
+                onClick={() => onStartGroup(unit.id)}
                 type="button"
               >
-                {isCompleted ? '再试一次' : '开始任务'}
+                打開字組
               </button>
             </div>
           </SectionCard>

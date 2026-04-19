@@ -1,46 +1,35 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { getProjectClueMapItems } from '../../data/camp-map';
 import { HomeScreen } from './HomeScreen';
 
-function renderHomeScreen(onStartCustomHanzi = vi.fn()) {
+function renderHomeScreen(onStartSingleCharacter = vi.fn()) {
   render(
     <HomeScreen
-      activeProjectLevelId={null}
-      completedCount={0}
-      completedProjectLevelIds={[]}
-      currentLevel={null}
-      totalStars={0}
-      onContinue={() => {}}
-      onOpenCourse={() => {}}
-      onOpenProjectLesson={() => {}}
-      onStartCustomHanzi={onStartCustomHanzi}
-      onGenerateAdventureMap={vi.fn()}
-      projectClues={getProjectClueMapItems()}
+      completedCount={3}
+      totalMistakes={7}
+      lastGroupTitle="木字旁 5 字組"
+      onResumeGroup={() => {}}
+      onStartSingleCharacter={onStartSingleCharacter}
+      onRandomGroup={vi.fn()}
       customError={null}
+      groupError={null}
     />,
   );
 
   return {
-    input: screen.getByTestId('custom-hanzi-input'),
-    button: screen.getByTestId('custom-hanzi-start'),
+    input: screen.getByTestId('character-input'),
+    button: screen.getByTestId('character-start'),
   };
 }
 
 describe('HomeScreen', () => {
-  it('renders the camp map as the homepage primary entry', () => {
+  it('renders the tool-style entry modules', () => {
     renderHomeScreen();
 
-    expect(screen.getByTestId('camp-adventure-map')).toBeInTheDocument();
-    expect(screen.getAllByTestId('clue-map-card')).toHaveLength(10);
-  });
-
-  it('keeps the secondary free-hanzi and generated-map areas below the map', () => {
-    renderHomeScreen();
-
-    expect(screen.getByText('自由单字')).toBeInTheDocument();
-    expect(screen.getByText('新探险地图')).toBeInTheDocument();
+    expect(screen.getByText('我想學這個字')).toBeInTheDocument();
+    expect(screen.getByText('隨機來一組')).toBeInTheDocument();
+    expect(screen.getByText('回到上一組')).toBeInTheDocument();
   });
 
   it('supports IME composition and keeps the final Chinese character', () => {
@@ -50,22 +39,22 @@ describe('HomeScreen', () => {
     fireEvent.change(input, { target: { value: 'h' } });
     expect(input).toHaveValue('h');
 
-    fireEvent.change(input, { target: { value: 'ha' } });
-    expect(input).toHaveValue('ha');
+    fireEvent.change(input, { target: { value: 'hao' } });
+    expect(input).toHaveValue('hao');
 
     fireEvent.compositionEnd(input, { data: '好' });
     fireEvent.change(input, { target: { value: '好' } });
     expect(input).toHaveValue('好');
   });
 
-  it('submits only the final single character after normal typing', async () => {
-    const onStartCustomHanzi = vi.fn();
+  it('submits the raw input when the learner starts single-character practice', async () => {
+    const onStartSingleCharacter = vi.fn();
     const user = userEvent.setup();
-    const { input, button } = renderHomeScreen(onStartCustomHanzi);
+    const { input, button } = renderHomeScreen(onStartSingleCharacter);
 
-    await user.type(input, '好');
+    await user.type(input, '树');
     await user.click(button);
 
-    expect(onStartCustomHanzi).toHaveBeenCalledWith('好');
+    expect(onStartSingleCharacter).toHaveBeenCalledWith('树');
   });
 });

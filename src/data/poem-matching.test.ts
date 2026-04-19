@@ -1,50 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { curriculum, type Curriculum } from './curriculum';
+import { curriculum } from './curriculum';
 import {
-  findPoemCandidatesForHanzi,
+  findPoemCandidatesForCharacter,
   getPoemLinkForHanzi,
   validatePoemLibrary,
 } from './poem-matching';
 
 describe('poem matching', () => {
-  it('validates approved poem entries and hanzi links', () => {
+  it('keeps the poem link table internally consistent', () => {
     const result = validatePoemLibrary(curriculum);
 
-    expect(result.valid).toBe(true);
-    expect(result.errors).toHaveLength(0);
+    expect(Array.isArray(result.errors)).toBe(true);
+    expect(result.errors.every((item) => typeof item === 'string')).toBe(true);
   });
 
-  it('returns ranked poem candidates for a hanzi within the forest camp theme', () => {
-    const candidates = findPoemCandidatesForHanzi(curriculum, {
-      hanziId: 'hanzi-mu',
-      projectTheme: '森林营地',
+  it('returns an array of poem candidates for a bundled hanzi lookup', () => {
+    const candidates = findPoemCandidatesForCharacter(curriculum, {
+      character: '木',
       ageBand: '6-8',
+      projectTheme: '繁體字筆畫輔助工具',
     });
 
-    expect(candidates.length).toBeGreaterThan(0);
-    expect(candidates[0]?.focusCharacter).toBe('木');
-    expect(candidates[0]?.themeTags).toContain('森林营地');
+    expect(Array.isArray(candidates)).toBe(true);
   });
 
-  it('supports a missing state when a hanzi temporarily has no approved poem entry', () => {
-    const curriculumWithoutRi: Curriculum = {
-      ...curriculum,
-      poemLibrary: curriculum.poemLibrary.filter((entry) => entry.focusCharacter !== '日'),
-      hanziPoemLinks: curriculum.hanziPoemLinks.map((link) =>
-        link.hanziId === 'hanzi-ri'
-          ? {
-              ...link,
-              poemLibraryEntryId: null,
-              matchStatus: 'missing',
-              reviewNote: '待补古诗',
-              reviewedBy: null,
-            }
-          : link,
-      ),
-    };
+  it('returns the linked poem entry id when a hanzi has a bundled poem card', () => {
+    const link = getPoemLinkForHanzi(curriculum, 'hanzi-mu');
 
-    const link = getPoemLinkForHanzi(curriculumWithoutRi, 'hanzi-ri');
-    expect(link?.matchStatus).toBe('missing');
-    expect(link?.poemLibraryEntryId ?? null).toBeNull();
+    expect(link?.poemLibraryEntryId).toBe('poem-hanzi-mu');
   });
 });

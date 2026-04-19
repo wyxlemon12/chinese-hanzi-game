@@ -1,6 +1,9 @@
 export type LessonStage = 'demo' | 'quiz' | 'complete';
+export type PracticeMode = 'guided' | 'blank';
 
 export interface QuizState {
+  round: 1 | 2;
+  practiceMode: PracticeMode;
   totalMistakes: number;
   completedStrokes: number;
   strokesRemaining: number;
@@ -46,10 +49,12 @@ export function createLessonFlow(lessonId: string): LessonFlow {
     lessonId,
     stage: 'demo',
     quiz: {
+      round: 1,
+      practiceMode: 'guided',
       totalMistakes: 0,
       completedStrokes: 0,
       strokesRemaining: 0,
-      lastFeedback: '先看老师写一遍，等会儿你就能去收集这条线索了。',
+      lastFeedback: '先看老师写一遍，等会儿你会先描红，再在空白格子里默写一遍。',
     },
     summary: null,
   };
@@ -61,10 +66,12 @@ export function advanceLessonFlow(flow: LessonFlow, event: LessonFlowEvent): Les
       ...flow,
       stage: 'quiz',
       quiz: {
+        round: 1,
+        practiceMode: 'guided',
         totalMistakes: 0,
         completedStrokes: 0,
         strokesRemaining: 0,
-        lastFeedback: '看懂了吗？轮到你来描一描了。',
+        lastFeedback: '第一轮先描红，跟着半透明底稿把这个字写稳。',
       },
     };
   }
@@ -74,10 +81,13 @@ export function advanceLessonFlow(flow: LessonFlow, event: LessonFlowEvent): Les
       ...flow,
       stage: 'quiz',
       quiz: {
+        ...flow.quiz,
         totalMistakes: event.totalMistakes,
-        completedStrokes: flow.quiz.completedStrokes,
         strokesRemaining: event.strokesRemaining,
-        lastFeedback: `第 ${event.strokeNum + 1} 笔再试一次，我们慢慢把线索找出来。`,
+        lastFeedback:
+          flow.quiz.round === 1
+            ? `第 ${event.strokeNum + 1} 笔再试一次，先把描红轮写稳。`
+            : `第 ${event.strokeNum + 1} 笔再试一次，这一轮要在空白格子里默写出来。`,
       },
     };
   }
@@ -87,11 +97,31 @@ export function advanceLessonFlow(flow: LessonFlow, event: LessonFlowEvent): Les
       ...flow,
       stage: 'quiz',
       quiz: {
+        ...flow.quiz,
         totalMistakes: event.totalMistakes,
         completedStrokes: flow.quiz.completedStrokes + 1,
         strokesRemaining: event.strokesRemaining,
-        lastFeedback: `太好了，你已经找到第 ${event.strokeNum + 1} 笔线索。`,
+        lastFeedback:
+          flow.quiz.round === 1
+            ? `很好，描红轮已经写对第 ${event.strokeNum + 1} 笔。`
+            : `很好，空白默写轮已经写对第 ${event.strokeNum + 1} 笔。`,
       },
+    };
+  }
+
+  if (flow.quiz.round === 1) {
+    return {
+      ...flow,
+      stage: 'quiz',
+      quiz: {
+        round: 2,
+        practiceMode: 'blank',
+        totalMistakes: event.totalMistakes,
+        completedStrokes: 0,
+        strokesRemaining: 0,
+        lastFeedback: '第一轮完成了。第二轮开始，在空白格子里自己写出来。',
+      },
+      summary: null,
     };
   }
 
@@ -111,7 +141,11 @@ export function getQuizProgressLabel(flow: LessonFlow): string {
     return '线索收集完成';
   }
 
-  return `还剩 ${flow.quiz.strokesRemaining} 笔`;
+  if (flow.stage === 'quiz') {
+    return `第 ${flow.quiz.round} 轮 · 还剩 ${flow.quiz.strokesRemaining} 笔`;
+  }
+
+  return '准备开始练习';
 }
 
 function getStarCount(totalMistakes: number) {

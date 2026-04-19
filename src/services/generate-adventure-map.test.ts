@@ -3,38 +3,49 @@ import { generateAdventureMap, getLatestGeneratedAdventureMap } from './generate
 
 beforeEach(() => {
   vi.stubGlobal('crypto', {
-    randomUUID: () => 'generated-map-uuid',
+    randomUUID: () => 'generated-group-uuid',
   });
   window.localStorage.clear();
 });
 
 describe('generateAdventureMap', () => {
-  it('creates a 10-hanzi temporary map from a knowledge point', async () => {
-    const map = await generateAdventureMap({
+  it('returns a 5-character group when the knowledge point matches a grouped character', async () => {
+    const group = await generateAdventureMap({
       mode: 'topic',
-      knowledgePoint: '春天',
+      knowledgePoint: '樹',
       ageBand: '6-8',
     });
 
-    expect(map.mode).toBe('topic');
-    expect(map.lessons).toHaveLength(10);
-    expect(new Set(map.lessons.map((item) => item.hanzi.character)).size).toBe(10);
-    expect(map.lessons.every((item) => item.poemLibraryEntry)).toBe(true);
+    expect(group.mode).toBe('topic');
+    expect(group.lessons).toHaveLength(5);
+    expect(group.themeRuleType).toBe('same-radical');
+    expect(group.focusCharacter).toBe('樹');
   });
 
-  it('creates a 10-hanzi temporary map for random mode', async () => {
-    const map = await generateAdventureMap({
+  it('supports keyword-driven groups', async () => {
+    const group = await generateAdventureMap({
+      mode: 'topic',
+      knowledgePoint: '動物',
+      ageBand: '6-8',
+    });
+
+    expect(group.themeTitle).toContain('動物');
+    expect(group.lessons).toHaveLength(5);
+  });
+
+  it('creates a random 5-character group', async () => {
+    const group = await generateAdventureMap({
       mode: 'random',
       ageBand: '6-8',
     });
 
-    expect(map.mode).toBe('random');
-    expect(map.lessons).toHaveLength(10);
-    expect(map.themeTitle.length).toBeGreaterThan(0);
+    expect(group.mode).toBe('random');
+    expect(group.lessons).toHaveLength(5);
+    expect(group.themeTitle.length).toBeGreaterThan(0);
   });
 
-  it('persists the latest generated map locally', async () => {
-    const map = await generateAdventureMap({
+  it('persists the latest selected group locally', async () => {
+    const group = await generateAdventureMap({
       mode: 'topic',
       knowledgePoint: '木字旁',
       ageBand: '6-8',
@@ -42,7 +53,7 @@ describe('generateAdventureMap', () => {
 
     const restored = getLatestGeneratedAdventureMap();
 
-    expect(restored?.id).toBe(map.id);
-    expect(restored?.lessons).toHaveLength(10);
+    expect(restored?.id).toBe(group.id);
+    expect(restored?.lessons).toHaveLength(5);
   });
 });

@@ -7,6 +7,7 @@ import {
   type LessonLevel,
   type PoemLibraryEntry,
 } from '../data/curriculum';
+import { normalizeToTraditional } from '../data/character-groups';
 import { findPoemCandidatesForCharacter } from '../data/poem-matching';
 
 const CUSTOM_STORE_KEY = 'shuyuan-custom-hanzi-store';
@@ -36,9 +37,9 @@ interface MatchAndUpsertRequest {
 export async function matchAndUpsertHanzi(
   request: MatchAndUpsertRequest,
 ): Promise<ResolvedCustomHanziLesson> {
-  const character = request.character.trim();
+  const character = normalizeToTraditional(request.character.trim());
   if (!isSingleHanzi(character)) {
-    throw new Error('请输入一个汉字');
+    throw new Error('請輸入一個單字。');
   }
 
   const existing = getHanziItemByCharacter(character);
@@ -67,7 +68,7 @@ export async function matchAndUpsertHanzi(
     };
   }
 
-  const generated = createLocalGeneratedLesson(request);
+  const generated = createLocalGeneratedLesson(request, character);
   writeCustomStore(character, generated);
 
   return {
@@ -77,16 +78,15 @@ export async function matchAndUpsertHanzi(
   };
 }
 
-function createLocalGeneratedLesson(request: MatchAndUpsertRequest): PersistedCustomLesson {
-  const character = request.character.trim();
+function createLocalGeneratedLesson(request: MatchAndUpsertRequest, character: string): PersistedCustomLesson {
   const bestCandidate =
     findPoemCandidatesForCharacter(curriculum, {
       character,
       ageBand: request.ageBand,
-      projectTheme: request.contextTheme ?? '自由单字',
+      projectTheme: request.contextTheme ?? '自由單字',
     })[0] ?? null;
 
-  const hanzi = createGeneratedHanziItem(character, request.contextTheme ?? '自由单字');
+  const hanzi = createGeneratedHanziItem(character, request.contextTheme ?? '自由單字');
   const level = createCustomLevel(hanzi);
 
   if (!bestCandidate) {
@@ -97,7 +97,7 @@ function createLocalGeneratedLesson(request: MatchAndUpsertRequest): PersistedCu
         hanziId: hanzi.id,
         poemLibraryEntryId: null,
         matchStatus: 'missing',
-        reviewNote: '未在精选诗库中找到合适诗句。',
+        reviewNote: '未在首批字庫中找到對應古詩卡。',
         reviewedBy: null,
       },
       poemLibraryEntry: null,
@@ -112,7 +112,7 @@ function createLocalGeneratedLesson(request: MatchAndUpsertRequest): PersistedCu
       hanziId: hanzi.id,
       poemLibraryEntryId: poemLibraryEntry.id,
       matchStatus: 'linked',
-      reviewNote: '系统自动匹配并立即启用。',
+      reviewNote: '系統自動匹配並啟用。',
       reviewedBy: 'system',
     },
     poemLibraryEntry,
@@ -125,30 +125,33 @@ function createGeneratedHanziItem(character: string, projectTheme: string): Hanz
   return {
     id,
     character,
-    pinyin: '待补',
-    meaning: `这是你主动输入想学习的“${character}”。`,
-    radical: '自由单字',
+    pinyin: '待補',
+    meaning: `這是你主動輸入想練習的「${character}」。`,
+    radical: '自由單字',
     strokeCount: 0,
-    animationLabel: `先观察“${character}”的样子，再跟着描一描。`,
-    introText: `这是你主动选择学习的“${character}”，先看老师演示，再自己试试。`,
-    prompt: `试着把“${character}”稳稳地描出来。`,
-    encouragement: `很好，你已经开始认识“${character}”了。`,
+    animationLabel: `先觀察「${character}」的樣子，再跟著描一描。`,
+    introText: `這是你主動選擇學習的「${character}」，先看動畫，再自己試試看。`,
+    prompt: `試著把「${character}」穩穩地描出來。`,
+    encouragement: `很好，你已經開始認識「${character}」了。`,
     projectTheme,
-    observationHint: '先观察整体轮廓，再看笔画怎么走。',
-    missionPrompt: `这是你自己发起的探索任务：认识“${character}”。`,
+    observationHint: '先觀察整體輪廓，再看筆畫怎麼走。',
+    missionPrompt: `今天先把「${character}」寫穩。`,
     vocabExamples: [],
+    structureType: 'single',
+    structureHint: '先觀察整體輪廓，再看筆畫走向。',
+    parts: [],
   };
 }
 
 function createCustomLevel(hanzi: HanziItem): LessonLevel {
   return {
     id: `custom-level-${hanzi.id}`,
-    title: `自由探索：${hanzi.character}`,
+    title: hanzi.character,
     levelType: 'hanzi',
     passRule: 'quiz-pass',
     sortOrder: 999,
     hanziItemId: hanzi.id,
-    rewardTitle: '自由探索徽章',
+    rewardTitle: '自由練習完成',
   };
 }
 
@@ -157,9 +160,9 @@ function createDerivedPoemCard(character: string, entry: PoemLibraryEntry): Poem
     ...entry,
     id: `derived-${character}-${entry.id}`,
     focusCharacter: character,
-    meaningInLine: `这句古诗里也出现了“${character}”。`,
-    kidExplanation: `学会“${character}”以后，你就能在古诗里把它认出来。`,
-    sourceNote: `${entry.sourceNote}（自动匹配）`,
+    meaningInLine: `這句古詩裡也出現了「${character}」。`,
+    kidExplanation: `學會「${character}」以後，你就能在古詩裡把它認出來。`,
+    sourceNote: `${entry.sourceNote}（自動匹配）`,
   };
 }
 
